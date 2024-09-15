@@ -1,6 +1,6 @@
 import json
 import anthropic
-import colorama
+import readline #Just importing readline enables nicer features for the builtin Python input.
 
 from .tools import tools_anthropic, tools_openai, tools_internal
 from .formatting import print_assistant, input_user, print_system, print_ua, print_internal_error
@@ -25,23 +25,55 @@ def confirm_proceed():
         else:
             print_system("Invalid input. Please enter 'y' or 'n'.")
 
+def cache_final_two_user_messages(messages):
+    """
+    Mirrors the strategy in https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching#continuing-a-multi-turn-conversation
+
+    Does not modify the argument in-place.
+    """
+
+    messages = [*messages]
+    if 1 <= len(messages):
+        assert messages[-1]["role"] == "user"
+        messages[-1]               = {**messages[-1]}
+        messages[-1]["content"]    = [ *messages[-1]["content"]]
+        messages[-1]["content"][0] = {**messages[-1]["content"][0]}
+        messages[-1]["content"][0]["cache_control"] = {"type": "ephemeral"}
+
+    if 3 <= len(messages):
+        messages[-3]               = {**messages[-3]}
+        messages[-3]["content"]    = [ *messages[-3]["content"]]
+        messages[-3]["content"][0] = {**messages[-3]["content"][0]}
+        messages[-3]["content"][0]["cache_control"] = {"type": "ephemeral"}
+
+    return messages
+
 
 def get_and_process_response(messages):
     """
     Takes user input, and does the things ...
     """ 
-    output_messages = [*messages]
+    
+    #The last message must be a user message.
+    assert messages[-1]["role"] == "user"
 
     print_ua("\nAssistant:")
 
-    response = client.messages.create(
-        model="claude-3-haiku-20240307",
-        #model="claude-3-5-sonnet-20240620",
+    response = client.beta.prompt_caching.messages.create(
+        #model="claude-3-haiku-20240307",
+        model="claude-3-5-sonnet-20240620",
         max_tokens=1000,
         system=system_message,
         tools=tools_anthropic,
-        messages = output_messages,
+        messages = cache_final_two_user_messages(messages),
     )
+    #For logging
+    #print(response.usage.input_tokens)
+    #print(response.usage.output_tokens)
+    #print(response.usage.cache_creation_input_tokens)
+    #print(response.usage.cache_read_input_tokens)
+
+    output_messages = [*messages]
 
     for block in response.content:
         if block.type == 'text':
