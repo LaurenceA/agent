@@ -1,14 +1,18 @@
 import json
 import anthropic
+import colorama
 
-from tools import tools_anthropic, tools_openai, tools_internal
+from .tools import tools_anthropic, tools_openai, tools_internal
+from .formatting import print_assistant, input_user, print_system, print_ua, print_internal_error
 
 client = anthropic.Anthropic()
 
 system_message = """
 You are a part of an agentic system for programming.
 
-The user is asked for permission before any tool is used.  The user may refuse to use a tool if they don't want you to use it.
+Try to be brief when responding to user requests.  Tokens are expensive!
+
+Don't ask for permission.  Just call the tools.  The agent wrapper handles asking the user for permission.
 """
 
 def confirm_proceed():
@@ -19,21 +23,8 @@ def confirm_proceed():
         elif user_input == 'n':
             return False
         else:
-            print("Invalid input. Please enter 'y' or 'n'.")
+            print_system("Invalid input. Please enter 'y' or 'n'.")
 
-def user_input_to_message(user_input):
-    """
-    Converts raw user input into a well-formatted message for use in OpenAI or Anthropic APIs
-    """
-    return {
-        "role": "user",
-        "content": [
-            {
-                "type": "text",
-                "text": user_input,
-            },
-        ]
-    }
 
 def get_and_process_response(messages):
     """
@@ -41,15 +32,16 @@ def get_and_process_response(messages):
     """ 
     output_messages = [*messages]
 
+    print_ua("\nAssistant:")
+
     response = client.messages.create(
-        model="claude-3-5-sonnet-20240620",
+        model="claude-3-haiku-20240307",
+        #model="claude-3-5-sonnet-20240620",
         max_tokens=1000,
         system=system_message,
         tools=tools_anthropic,
         messages = output_messages,
     )
-
-    print("Assistant:")
 
     for block in response.content:
         if block.type == 'text':
@@ -60,7 +52,7 @@ def get_and_process_response(messages):
                     "text": block.text,
                 }],
             })
-            print(block.text)
+            print_assistant(block.text)
 
         elif block.type == 'tool_use':
             function_name = block.name
@@ -86,7 +78,7 @@ def get_and_process_response(messages):
             #Append the tool call result to messages, with a user role
             #If the user refuses to run the tool call, then have "User refused the use of the tool" as the result.
 
-            print(f'About to call:\n{function_name}({args})')
+            tools_internal[function_name]['report_function'](**args)
             confirmed = confirm_proceed()
 
             if confirmed:
@@ -108,21 +100,40 @@ def get_and_process_response(messages):
                 ]
             })
 
-            print(result)
+            print_system(result)
  
-            #Get a new response, so the model can comment on the results.
+            #The tool use agent is "user".  If the user refused to use the tool, let the user provide some more context:
+            #Otherwise, get a new response from the LLM
             if confirmed:
                 output_messages = get_and_process_response(output_messages)
             
         else:
-            print(block)
+            print_internal_error(block)
 
     return output_messages
     
 messages = []
 while True:
-    user_input = input('User:\n')
-    messages.append(user_input_to_message(user_input))
-    messages = get_and_process_response(messages)
-    
-    
+    print_ua('\nUser:')
+    user_input = input_user().strip()
+    if user_input == "exit":
+        break
+    elif user_input == "clear_context":
+        messages = []
+    else:
+        user_content = {
+            "type": "text",
+            "text": user_input,
+        }
+        
+        #Dialogue must alternate between assistant and user.
+        #If the previous message was a user message (because a tool call was refused), then append to that user message.
+        #Otherwise, start a new user message.
+        if len(messages) > 0 and messages[-1]["role"] == "user":
+            messages[-1]["content"].append(user_content)
+        else:
+            messages.append({
+                "role": "user",
+                "content": [user_content],
+            })
+        messages = get_and_process_response(messages)

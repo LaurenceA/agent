@@ -6,7 +6,9 @@ setup(
     package_dir={"": "src"},
     packages=find_packages(where="src"),
     install_requires=[
-        # Add your project dependencies here
+        "openai",
+        "anthropic",
+        "colorama"
     ],
     entry_points={
         "console_scripts": [

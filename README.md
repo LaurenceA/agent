@@ -42,7 +42,7 @@ strange_loop_agent/
 To set up a development environment, we recommend using a virtual environment:
 
 ```
-python -m venv venv
+python -m venv .venv
 source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
 pip install -e .
 ```
