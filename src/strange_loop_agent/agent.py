@@ -95,9 +95,7 @@ def get_and_process_response(persistent_messages):
     #The last message must be a user message.
     assert messages[-1]["role"] == "user"
 
-    print(persistent_messages)
     preprocessed_messages = add_open_files_to_messages(cache_final_two_user_messages(persistent_messages))
-    print(preprocessed_messages)
 
     print_ua("\nAssistant:")
 

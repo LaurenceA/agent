@@ -47,45 +47,45 @@ def report_list_files(path):
 tools_internal["list_files"] = {
     "function" : list_files,
     "report_function": report_list_files,
-    "description" : "Lists all files in the current directory and in subdirectories. Excludes hidden files, or files in hidden directories. This tool is implemented by calling the linux `find` shell command.",
+    "description" : "Lists all files in the specified directory and in subdirectories. Excludes hidden files, or files in hidden directories. This tool is implemented by calling the linux `find` shell command.",
     "input_schema" : {
         "type": "object",
         "properties": {
             "path": {
                 "type": "string",
-                "description": "This tool lists all tools in a directory.  The path argument specifies that directory.",
+                "description": "The path, from the current working directory",
             }
         },
         "required": ["path"],
     }
 }
 
-def write_file(file_name, content):
+def write_file(file_path, content):
     try:
-        with open(file_name, 'w') as file:
+        with open(file_path, 'w') as file:
             file.write(content)
         return "File written successfully"
     except Exception as e:
         return f"An error occured: {e}"
 
-def report_write_file(file_name, content):
-    print_system(f"About to write file with filename: {file_name}")
+def report_write_file(file_path, content):
+    print_system(f"About to write file with filename: {file_path}")
     print_code(content)
 
 tools_internal["write_file"] ={
     "function" : write_file,
     "report_function": report_write_file,
-    "description" : "Writes a new file, or overwrites that file if it is already present.  file_name specifies the file name, and content specifies the content to be written to the file",
+    "description" : "Writes a new file, or overwrites that file if it is already present. Both file_path and content must be present.",
     "input_schema" : {
         "type": "object",
         "properties": {
-            "file_name": {
+            "file_path": {
                 "type": "string",
-                "description": "This tool lists all tools in a directory.  The path argument specifies that directory.",
+                "description": "The relative path to the file, starting from the project root directory",
             },
             "content": {
                 "type": "string",
-                "description": "This tool lists all tools in a directory.  The path argument specifies that directory.",
+                "description": "The content to write to the file",
             },
         },
         "required": ["file_name", "content"],
