@@ -24,6 +24,8 @@ Try to be brief when responding to user requests.  Tokens are expensive!
 
 Don't ask for permission.  Just call the tools.  The agent wrapper handles asking the user for permission.
 
+Try to minimize the number of files you have open.  Make sure that you only have open the files you need!
+
 A brief description of the system you are running on:
 OS name: {call_terminal('uname -s')}
 OS version: {call_terminal('uname -r')}
@@ -85,7 +87,7 @@ def add_open_files_to_messages(messages):
     return messages
 
 
-def get_and_process_response(messages):
+def get_and_process_response(persistent_messages):
     """
     Takes user input, and does the things ...
     """ 
@@ -93,9 +95,9 @@ def get_and_process_response(messages):
     #The last message must be a user message.
     assert messages[-1]["role"] == "user"
 
-    messages = add_open_files_to_messages(cache_final_two_user_messages(messages))
-
-    print(messages)
+    print(persistent_messages)
+    preprocessed_messages = add_open_files_to_messages(cache_final_two_user_messages(persistent_messages))
+    print(preprocessed_messages)
 
     print_ua("\nAssistant:")
 
@@ -105,7 +107,7 @@ def get_and_process_response(messages):
         max_tokens=1000,
         system=system_message,
         tools=tools_anthropic,
-        messages = cache_final_two_user_messages(messages),
+        messages = preprocessed_messages
     )
     #For logging
     #print(response.usage.input_tokens)
@@ -113,7 +115,7 @@ def get_and_process_response(messages):
     #print(response.usage.cache_creation_input_tokens)
     #print(response.usage.cache_read_input_tokens)
 
-    output_messages = [*messages]
+    output_messages = [*persistent_messages]
 
     for block in response.content:
         if block.type == 'text':
