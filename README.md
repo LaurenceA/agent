@@ -57,9 +57,6 @@ This will install the package in editable mode, allowing you to make changes to 
   - The summary is associated with a hash for the file.
   - When you use the summary, check the file hashes.
   - Summary contains info on all functions/classes/globals.
-* Have a set of open files, which are pasted at the end of the messages.
-  - Tools to open/close files.
-  - Could also open sub-parts of files, based on info in the summary.
 * Internet search, especially for documentation.
   - Google search / Bing API.
   - Use 4o-mini to convert website?  Or a library like Mozilla's readability
@@ -67,7 +64,8 @@ This will install the package in editable mode, allowing you to make changes to 
 * Report file diffs.
 * Read from interactive terminals using 4o-mini.
 
-## Finetuning:
+## Improvements:
 
-* Prompt caching.
+* Open sub-parts of files, based on info in the summary.
+* Optimize prompt caching.
 * Input format.  Arrows work through readline.  But don't have e.g. multi-line input.

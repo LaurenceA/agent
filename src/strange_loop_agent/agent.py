@@ -16,9 +16,13 @@ def call_terminal(command):
     return stdout.strip()
 
 #all_files_in_project_at_launch = call_terminal("find . -type f -not -path '*/\\.*'")
-all_files_in_project_at_launch = call_terminal("git ls-tree -r HEAD --name-only)
+all_files_in_project_at_launch = call_terminal("git ls-tree -r HEAD --name-only")
 
 system_message = f"""You are a part of an agentic system for programming.
+
+Try to be brief when responding to user requests.  Tokens are expensive!
+
+Don't ask for permission.  Just call the tools.  The agent wrapper handles asking the user for permission.
 
 A brief description of the system you are running on:
 OS name: {call_terminal('uname -s')}
@@ -29,10 +33,6 @@ System name: {call_terminal('uname -n')}
 The project root directory is:
 {project_dir}
 Don't navigate, or modify anything outside, this directory.
-
-Try to be brief when responding to user requests.  Tokens are expensive!
-
-Don't ask for permission.  Just call the tools.  The agent wrapper handles asking the user for permission.
 
 The files currently tracked by git are:
 {all_files_in_project_at_launch}
@@ -79,7 +79,7 @@ def add_open_files_to_messages(messages):
 
         messages[-1]["content"].append({
             "type" : "text",
-            "content" : string_for_all_open_files(),
+            "text" : string_for_all_open_files(),
         })
 
     return messages

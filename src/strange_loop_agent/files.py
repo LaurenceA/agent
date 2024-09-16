@@ -1,5 +1,7 @@
 import os
 
+from .formatting import print_system
+
 open_files = []
 file_tools_internal = {}
 project_dir = os.getcwd() #Must be imported as part of the first call to main if this is to work.
@@ -8,7 +10,7 @@ def num_open_files():
     return len(open_files)
 
 def report_open_file(file_path):
-    return f"About to open {file_path}"
+    print_system(f"About to open {file_path}")
 
 def open_file(file_path):
     abs_path = os.path.join(project_dir, file_path)
@@ -16,27 +18,28 @@ def open_file(file_path):
     if os.path.exists(abs_path):
         if file_path not in open_files:
             open_files.append(file_path)
-            print("{file_path} added to open files")
+            return "{file_path} added to open files"
         else:
-            print("{file_path} already in open files")
+            return "{file_path} already in open files"
     else:
-        print("{file_path} does not exist")
+        return "{file_path} does not exist"
 
 def report_close_file(file_path):
-    return f"About to close {file_path}"
+    print_system(f"About to close {file_path}")
 
 def close_file(file_path):
     if file_path in open_files:
         open_files.remove(file_path)
-        print("{file_path} closed")
+        return "{file_path} closed"
     else:
-        print("{file_path} was not open")
+        return "{file_path} was not open"
 
 def report_close_all_files():
-    return "About to close all files"
+    print_system("About to close all files")
 
 def close_all_files():
     open_files = []
+    return "All files closed"
 
 file_tools_internal["open_file"] ={
     "function" : open_file,
@@ -98,7 +101,8 @@ def string_for_all_open_files():
     files_content = ["Open files: {open_files}"]
     for file_path in open_files:
         abs_path = os.path.join(project_dir, file_path)
-        file_content = os.read(abs_path)
+        with open(abs_path, 'r') as file:
+            file_content = file.read()
         #try:
         #    file_content = os.read(abs_path)
         #except Exception as e:
