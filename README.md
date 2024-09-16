@@ -23,6 +23,8 @@ or if you've installed the package:
 strange_loop_agent
 ```
 
+The agent assumes you're running it run from the project root directory.
+
 ## Project Structure
 
 ```
@@ -61,7 +63,8 @@ This will install the package in editable mode, allowing you to make changes to 
 * Internet search, especially for documentation.
   - Google search / Bing API.
   - Use 4o-mini to convert website?  Or a library like Mozilla's readability
-* Tool to display file in context.
+* Swappable OpenAI and Anthropic prompts.
+* Report file diffs.
 * Read from interactive terminals using 4o-mini.
 
 ## Finetuning:

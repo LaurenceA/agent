@@ -2,8 +2,9 @@ import os
 import subprocess
 
 from .formatting import print_system, print_code
+from .files import file_tools_internal
 
-tools_internal = {}
+tools_internal = {**file_tools_internal}
 
 def report_run_command_in_shell(command):
     print_system(f"About to run command in shell: {command}")
@@ -94,7 +95,7 @@ tools_internal["write_file"] ={
 def change_working_directory(path):
     try:
         os.chdir(path)
-        return(os.getcwd())
+        return f"Changed directory to {os.getcwd()}"
     except Exception as e:
         return f"An error occurred: {e}"
 
@@ -112,6 +113,10 @@ tools_internal["change_working_directory"] ={
         "required": ["path"],
     }
 }
+
+
+
+
 
 tools_openai = []
 tools_anthropic = []

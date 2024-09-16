@@ -1,18 +1,41 @@
+import os
 import json
 import anthropic
+import subprocess
 import readline #Just importing readline enables nicer features for the builtin Python input.
 
-from .tools import tools_anthropic, tools_openai, tools_internal
+from .tools import tools_anthropic, tools_openai, tools_internal, run_command_in_shell
 from .formatting import print_assistant, input_user, print_system, print_ua, print_internal_error
+from .files import validate_open_files, string_for_all_open_files, num_open_files, project_dir
 
 client = anthropic.Anthropic()
 
-system_message = """
-You are a part of an agentic system for programming.
+def call_terminal(command):
+    stdout = subprocess.run(command, shell=True, capture_output=True, text=True).stdout
+    assert 0 < len(stdout)
+    return stdout.strip()
+
+#all_files_in_project_at_launch = call_terminal("find . -type f -not -path '*/\\.*'")
+all_files_in_project_at_launch = call_terminal("git ls-tree -r HEAD --name-only)
+
+system_message = f"""You are a part of an agentic system for programming.
+
+A brief description of the system you are running on:
+OS name: {call_terminal('uname -s')}
+OS version: {call_terminal('uname -r')}
+Architecture: {call_terminal('uname -m')}
+System name: {call_terminal('uname -n')}
+
+The project root directory is:
+{project_dir}
+Don't navigate, or modify anything outside, this directory.
 
 Try to be brief when responding to user requests.  Tokens are expensive!
 
 Don't ask for permission.  Just call the tools.  The agent wrapper handles asking the user for permission.
+
+The files currently tracked by git are:
+{all_files_in_project_at_launch}
 """
 
 def confirm_proceed():
@@ -37,14 +60,27 @@ def cache_final_two_user_messages(messages):
         assert messages[-1]["role"] == "user"
         messages[-1]               = {**messages[-1]}
         messages[-1]["content"]    = [ *messages[-1]["content"]]
-        messages[-1]["content"][0] = {**messages[-1]["content"][0]}
-        messages[-1]["content"][0]["cache_control"] = {"type": "ephemeral"}
+        messages[-1]["content"][0] = {**messages[-1]["content"][0], "cache_control" : {"type": "ephemeral"}}
 
     if 3 <= len(messages):
         messages[-3]               = {**messages[-3]}
         messages[-3]["content"]    = [ *messages[-3]["content"]]
-        messages[-3]["content"][0] = {**messages[-3]["content"][0]}
-        messages[-3]["content"][0]["cache_control"] = {"type": "ephemeral"}
+        messages[-3]["content"][0] = {**messages[-3]["content"][0], "cache_control" : {"type": "ephemeral"}}
+
+    return messages
+
+def add_open_files_to_messages(messages):
+    messages = [*messages]
+    if 1 <= len(messages) and 1 <= num_open_files():
+        assert messages[-1]["role"] == "user"
+
+        messages[-1]            = {**messages[-1]}
+        messages[-1]["content"] = [ *messages[-1]["content"]]
+
+        messages[-1]["content"].append({
+            "type" : "text",
+            "content" : string_for_all_open_files(),
+        })
 
     return messages
 
@@ -56,6 +92,10 @@ def get_and_process_response(messages):
     
     #The last message must be a user message.
     assert messages[-1]["role"] == "user"
+
+    messages = add_open_files_to_messages(cache_final_two_user_messages(messages))
+
+    print(messages)
 
     print_ua("\nAssistant:")
 
