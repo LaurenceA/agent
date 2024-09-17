@@ -18,11 +18,11 @@ def open_file(file_path):
     if os.path.exists(abs_path):
         if file_path not in open_files:
             open_files.append(file_path)
-            return "{file_path} added to open files"
+            return f"Opened {file_path}."
         else:
-            return "{file_path} already in open files"
+            return f"{file_path} already in open files"
     else:
-        return "{file_path} does not exist"
+        return f"{file_path} does not exist"
 
 def report_close_file(file_path):
     print_system(f"About to close {file_path}")
@@ -30,9 +30,9 @@ def report_close_file(file_path):
 def close_file(file_path):
     if file_path in open_files:
         open_files.remove(file_path)
-        return "{file_path} closed"
+        return f"Closed {file_path}"
     else:
-        return "{file_path} was not open"
+        return f"{file_path} was not open"
 
 def report_close_all_files():
     print_system("About to close all files")
@@ -45,6 +45,7 @@ file_tools_internal["open_file"] ={
     "function" : open_file,
     "report_function" : report_open_file,
     "description" : "Opens a file, putting the full file contents in every prompt",
+    "long_args": [],
     "input_schema" : {
         "type": "object",
         "properties": {
@@ -61,6 +62,7 @@ file_tools_internal["close_file"] ={
     "function" : close_file,
     "report_function" : report_close_file,
     "description" : "Closes a file, which stops the full contents being placed in every prompt",
+    "long_args": [],
     "input_schema" : {
         "type": "object",
         "properties": {
@@ -77,6 +79,7 @@ file_tools_internal["close_all_files"] ={
     "function" : report_close_all_files,
     "report_function" : report_close_file,
     "description" : "Closes all open files. So there are now no files having their contents placed at the start of every prompt",
+    "long_args": [],
     "input_schema" : {
         "type": "object",
         "properties": {

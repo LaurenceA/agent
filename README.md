@@ -66,7 +66,7 @@ This will install the package in editable mode, allowing you to make changes to 
 
 ## Improvements:
 
-* write_file has the file contents in the arguments + result.  Only one is necessary.  Tools optionally return two strings, one for the LLM, one for the user.
+* Open files when write to them
 * Open sub-parts of files, based on info in the summary.
 * Optimize prompt caching.
 * Input format.  Arrows work through readline.  But don't have e.g. multi-line input.

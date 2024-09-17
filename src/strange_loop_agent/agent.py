@@ -99,6 +99,8 @@ def get_and_process_response(persistent_messages):
 
     print_ua("\nAssistant:")
 
+    #print(preprocessed_messages)
+
     response = client.beta.prompt_caching.messages.create(
         #model="claude-3-haiku-20240307",
         model="claude-3-5-sonnet-20240620",
@@ -130,12 +132,19 @@ def get_and_process_response(persistent_messages):
             function_name = block.name
             args = block.input
 
+
+            #Abbreviate very long arguments.
+            abbreviated_args = {**args}
+            for argname in tools_internal[function_name]['long_args']:
+                if argname in abbreviated_args:
+                    abbreviated_args[argname] = "..."
+
             #Append tool call itself to messages.
             tool_call = {
                 "type": "tool_use",
                 "id": block.id,
                 "name": function_name,
-                "input": args,
+                "input": abbreviated_args,
             }
 
             #The tool call has an assistant role, so would usually be appended to the content of the previous text block.
@@ -150,14 +159,22 @@ def get_and_process_response(persistent_messages):
             #Append the tool call result to messages, with a user role
             #If the user refuses to run the tool call, then have "User refused the use of the tool" as the result.
 
-            tools_internal[function_name]['report_function'](**args)
-            confirmed = confirm_proceed()
+            required_args = tools_internal[function_name]["input_schema"]["required"]
+            all_required_args_present = all(argname in args for argname in required_args)
 
-            if confirmed:
-                function = tools_internal[function_name]['function']
-                result = function(**args)
+            user_refused_permission = False
+            if not all_required_args_present:
+                result = f"{function_name} requires {required_args}, but given {[*args.keys()]}"
+                print(output_messages)
             else:
-                result = "User refused the use of the tool."
+                tools_internal[function_name]['report_function'](**args)
+                user_refused_permission = not confirm_proceed()
+
+                if user_refused_permission:
+                    result = "User refused the use of the tool."
+                else:
+                    function = tools_internal[function_name]['function']
+                    result = function(**args)
 
             tool_use_result_content = {
                 "type": "tool_result",
@@ -174,9 +191,9 @@ def get_and_process_response(persistent_messages):
 
             print_system(result)
  
-            #The tool use agent is "user".  If the user refused to use the tool, let the user provide some more context:
-            #Otherwise, get a new response from the LLM
-            if confirmed:
+            #If the user refused to use the tool, pass back immediately to user to provide more context.
+            #Otherwise, recursively call LLM
+            if not user_refused_permission:
                 output_messages = get_and_process_response(output_messages)
             
         else:

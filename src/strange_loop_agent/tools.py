@@ -26,6 +26,7 @@ tools_internal["run_command_in_shell"] = {
     "function" : run_command_in_shell,
     "report_function": report_run_command_in_shell,
     "description" : "Runs a command in the shell. Reports stdout, stderr and the exit code.  The command must return immediately, and not be interactive (e.g. an interpreter).",
+    "long_args": [],
     "input_schema" : {
         "type": "object",
         "properties": {
@@ -48,6 +49,7 @@ tools_internal["list_files"] = {
     "function" : list_files,
     "report_function": report_list_files,
     "description" : "Lists all files in the specified directory and in subdirectories. Excludes hidden files, or files in hidden directories. This tool is implemented by calling the linux `find` shell command.",
+    "long_args": [],
     "input_schema" : {
         "type": "object",
         "properties": {
@@ -60,35 +62,68 @@ tools_internal["list_files"] = {
     }
 }
 
-def write_file(file_path, content):
+
+#def plus(a, b):
+#    return str(int(a) + int(b))
+#
+#def report_plus(a, b):
+#    print_system(f"About to add {a} and {b}")
+#
+#tools_internal["plus"] ={
+#    "function" : plus,
+#    "report_function": report_plus,
+#    "description" : "Adds two quantities",
+#    "long_args": [],
+#    "input_schema" : {
+#        "type": "object",
+#        "properties": {
+#            "a": {
+#                "type": "string",
+#                "description": "The first quantity to add",
+#            },
+#            "b": {
+#                "type": "string",
+#                "description": "The second quantity to add",
+#            },
+#        },
+#        "required": ["a", "b"],
+#    }
+#}
+
+
+
+
+def write_file(file_path, data):
     try:
         with open(file_path, 'w') as file:
-            file.write(content)
+            file.write(data)
+        
         return "File written successfully"
     except Exception as e:
         return f"An error occured: {e}"
 
-def report_write_file(file_path, content):
+def report_write_file(file_path, data):
     print_system(f"About to write file with filename: {file_path}")
-    print_code(content)
+    print_code(data)
 
 tools_internal["write_file"] ={
     "function" : write_file,
     "report_function": report_write_file,
-    "description" : "Writes a new file, or overwrites that file if it is already present. Both file_path and content must be present.",
+    "description" : "Writes a new file, or overwrites that file if it is already present. Writes the file with data provided in the data argument. This function MUST be called with both the file_path and data arguments.",
+    "long_args": ["data"],
     "input_schema" : {
         "type": "object",
         "properties": {
+            "data": {
+                "type": "string",
+                "description": "The content to write to the file.  This must be the full file.  You can't say e.g. rest of the file remains unchanged.  This argument could therefore be very long.",
+            },
             "file_path": {
                 "type": "string",
                 "description": "The relative path to the file, starting from the project root directory",
             },
-            "content": {
-                "type": "string",
-                "description": "The content to write to the file",
-            },
         },
-        "required": ["file_name", "content"],
+        "required": ["data", "file_path"],
     }
 }
 
@@ -99,9 +134,14 @@ def change_working_directory(path):
     except Exception as e:
         return f"An error occurred: {e}"
 
+def report_change_working_directory(path):
+    return f"About to change directory to path"
+
 tools_internal["change_working_directory"] ={
     "function" : change_working_directory,
+    "report_function" : report_change_working_directory,
     "description" : "Changes the current working directory.  Equivalent to cd in the shell, or os.chdir in Python",
+    "long_args": [],
     "input_schema" : {
         "type": "object",
         "properties": {
@@ -115,11 +155,10 @@ tools_internal["change_working_directory"] ={
 }
 
 
-
-
-
 tools_openai = []
 tools_anthropic = []
+
+# Strip internal info like long_args and report_function, and format appropriately for the Anthropic + OpenAI APIs.
 
 for toolname, tooldef in tools_internal.items():
     tools_anthropic.append({
