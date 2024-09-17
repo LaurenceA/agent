@@ -2,7 +2,7 @@ import os
 
 from .formatting import print_system
 
-open_files = []
+open_files = set() #Mutable set.
 file_tools_internal = {}
 project_dir = os.getcwd() #Must be imported as part of the first call to main if this is to work.
 
@@ -16,11 +16,8 @@ def open_file(file_path):
     abs_path = os.path.join(project_dir, file_path)
 
     if os.path.exists(abs_path):
-        if file_path not in open_files:
-            open_files.append(file_path)
-            return f"Opened {file_path}."
-        else:
-            return f"{file_path} already in open files"
+        open_files.add(file_path)
+        return f"Opened {file_path}"
     else:
         return f"{file_path} does not exist"
 
@@ -28,17 +25,14 @@ def report_close_file(file_path):
     print_system(f"About to close {file_path}")
 
 def close_file(file_path):
-    if file_path in open_files:
-        open_files.remove(file_path)
-        return f"Closed {file_path}"
-    else:
-        return f"{file_path} was not open"
+    open_files.discard(file_path) # Removes without raising error is not present.
+    return f"Closed {file_path}"
 
 def report_close_all_files():
     print_system("About to close all files")
 
 def close_all_files():
-    open_files = []
+    open_files = set()
     return "All files closed"
 
 file_tools_internal["open_file"] ={

@@ -26,6 +26,8 @@ Don't ask for permission.  Just call the tools.  The agent wrapper handles askin
 
 Try to minimize the number of files you have open.  Make sure that you only have open the files you need!
 
+Any time you want to write a file, put the code in the `code` argument of the write_file function.
+
 A brief description of the system you are running on:
 OS name: {call_terminal('uname -s')}
 OS version: {call_terminal('uname -r')}
