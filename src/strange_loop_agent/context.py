@@ -3,7 +3,7 @@ import os
 from .formatting import print_system
 
 context_files = set() #Mutable set.
-file_tools_internal = {}
+context_tools_internal = {}
 project_dir = os.getcwd() #Must be imported as part of the first call to main if this is to work.
 
 def num_context_files():
@@ -41,7 +41,7 @@ def report_report_context():
 def report_context():
     return 'Files in context:\n' + '\n'.join(open_files)
 
-file_tools_internal["add_file_to_context"] ={
+context_tools_internal["add_file_to_context"] ={
     "function" : add_file_to_context,
     "report_function" : report_add_file_to_context,
     "description" : "Adds a file to the context, putting the full file contents in every prompt",
@@ -59,7 +59,7 @@ file_tools_internal["add_file_to_context"] ={
 }
 
 
-file_tools_internal["remove_file_from_context"] ={
+context_tools_internal["remove_file_from_context"] ={
     "function" : remove_file_from_context,
     "report_function" : report_remove_file_from_context,
     "description" : "Removes a file from the context, stopping the full contents being placed in every prompt",
@@ -76,7 +76,7 @@ file_tools_internal["remove_file_from_context"] ={
     }
 }
 
-file_tools_internal["clear_context"] ={
+context_tools_internal["clear_context"] ={
     "function" : clear_context,
     "report_function" : clear_context,
     "description" : "Clears the context. So there are now no files having their contents placed at the start of every prompt",
@@ -89,7 +89,7 @@ file_tools_internal["clear_context"] ={
     }
 }
 
-file_tools_internal["report_context"] ={
+context_tools_internal["report_context"] ={
     "function" : report_report_context,
     "report_function" : report_context,
     "description" : "Reports all the currently open files.",

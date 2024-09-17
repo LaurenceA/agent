@@ -2,9 +2,9 @@ import os
 import subprocess
 
 from .formatting import print_system, print_code
-from .files import file_tools_internal, context_files
+from .context import context_tools_internal, context_files
 
-tools_internal = {**file_tools_internal}
+tools_internal = {**context_tools_internal}
 
 def report_run_command_in_shell(command):
     print_system(f"About to run command in shell: {command}")
@@ -93,40 +93,6 @@ tools_internal["list_files"] = {
 
 
 
-def write_file(file_path, code):
-    try:
-        with open(file_path, 'w') as file:
-            file.write(code)
-        context_files.add(file_path)
-        
-        return "File written successfully"
-    except Exception as e:
-        return f"An error occured: {e}"
-
-def report_write_file(file_path, code):
-    print_system(f"About to write file with filename: {file_path}")
-    print_code(code)
-
-tools_internal["write_file"] ={
-    "function" : write_file,
-    "report_function": report_write_file,
-    "description" : "Writes a new file, or overwrites that file if it is already present. Writes the file with code provided in the code argument. This function MUST be called with both the file_path and code arguments. This function leaves the file open (so its content is available to the assistant).",
-    "long_args": ["code"],
-    "input_schema" : {
-        "type": "object",
-        "properties": {
-            "file_path": {
-                "type": "string",
-                "description": "The relative path to the file, starting from the project root directory",
-            },
-            "code": {
-                "type": "string",
-                "description": "The content to write to the file.  This must be the full file.  You can't say e.g. rest of the file remains unchanged.  This argument could therefore be very long.",
-            },
-        },
-        "required": ["file_path", "code"],
-    }
-}
 
 def change_working_directory(path):
     try:

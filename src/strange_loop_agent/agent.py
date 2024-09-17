@@ -6,7 +6,7 @@ import readline #Just importing readline enables nicer features for the builtin 
 
 from .tools import tools_anthropic, tools_openai, tools_internal, run_command_in_shell
 from .formatting import print_assistant, input_user, print_system, print_ua, print_internal_error
-from .files import validate_context_files, full_context_as_a_string, num_context_files, project_dir
+from .context import validate_context_files, full_context_as_a_string, num_context_files, project_dir
 
 client = anthropic.Anthropic()
 
