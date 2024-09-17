@@ -7,7 +7,7 @@ from dataclasses import dataclass, replace
 from typing import Optional
 
 from .tools import tools_anthropic, tools_openai, tools_internal, run_command_in_shell
-from .formatting import print_assistant, input_user, print_system, print_ua, print_internal_error
+from .formatting import print_assistant, input_user, print_system, print_ua, print_internal_error, print_code
 from .messages import preprocess_messages, append_text_to_messages, append_content_to_messages
 
 
@@ -36,8 +36,8 @@ class State:
         assert state.file_for_writing is None
         return replace(state, file_for_writing=file_path)
 
-    def close_file_for_writing(state, file_path):
-        assert state.open_file is not None
+    def close_file_for_writing(state):
+        assert state.file_for_writing is not None
         return replace(state, file_for_writing=None)
 
     def append_text(state, role, text, error_if_not_role_alternate=False):
@@ -76,7 +76,7 @@ Try to be brief when responding to user requests.  Tokens are expensive!
 
 Don't ask for permission.  Just call the tools.  The agent wrapper handles asking the user for permission.
 
-Try to minimize the number of files you have open.  Make sure that you only have open the files you need!
+Try to minimize the number of files you have in the context.  Discard any files from the context you don't need.
 
 Do not tell the user the open files unless specifically asked.
 
@@ -103,6 +103,7 @@ def confirm_proceed():
             return False
         else:
             print_system("Invalid input. Please enter 'y' or 'n'.")
+            return confirm_proceed()
 
 
 def update_state_assistant(state):
@@ -134,15 +135,41 @@ def update_state_assistant(state):
     #print(response.usage.cache_creation_input_tokens)
     #print(response.usage.cache_read_input_tokens)
 
+    if state.file_for_writing is not None:
+        assert 1 == len(response.content)
+        assert response.content[0].type == 'text'
+
     for block in response.content:
         if block.type == 'text':
             if state.file_for_writing is None:
+                # Standard text response.
                 state = state.append_text("assistant", block.text)
                 print_assistant(block.text)
             else:
-                print(f"Write the following to {state.file_for_writing} (y/n)?\n{block.text}")
+                # Text in file write mode.
+                print_system(f"About to write the following to {state.file_for_writing}")
+                print_code(block.text)
+                user_refused_permission = not confirm_proceed()
+                if user_refused_permission:
+                    result = "User refused permission to write the file"
+                else:
+                    try:
+                        abs_path = os.path.join(state.project_dir, state.file_for_writing)
+                        with open(abs_path, 'w') as file:
+                            file.write(block.text)
+                        state = state.add_file_to_context(state.file_for_writing)
+                        
+                        result = "File written successfully"
+                    except Exception as e:
+                        result= f"An error occured: {e}"
+                    
+                print_system(result)
+                state = state.append_text('user', result)
+                state = state.close_file_for_writing()
+                state = update_state_assistant(state)
 
         elif block.type == 'tool_use':
+            # Tool call.
             function_name = block.name
             args = block.input
 

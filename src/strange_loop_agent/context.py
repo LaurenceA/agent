@@ -87,8 +87,8 @@ context_tools_internal["clear_context"] ={
 }
 
 context_tools_internal["report_context"] ={
-    "function" : report_report_context,
-    "report_function" : report_context,
+    "function" : report_context,
+    "report_function" : report_report_context,
     "description" : "Reports all the currently open files.",
     "long_args": [],
     "input_schema" : {

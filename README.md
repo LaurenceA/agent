@@ -66,7 +66,9 @@ This will install the package in editable mode, allowing you to make changes to 
 
 ## Improvements:
 
-* Open files when write to them
+* Refine the prompt when in "file-writing" mode.  e.g. state whether the file exists.  Add the file to context etc.
 * Open sub-parts of files, based on info in the summary.
 * Optimize prompt caching.
 * Input format.  Arrows work through readline.  But don't have e.g. multi-line input.
+
+* Hard-code context / file printing stuff 
