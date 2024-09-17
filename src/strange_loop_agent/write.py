@@ -13,7 +13,7 @@ write_tools_internal = {}
 #        return f"An error occured: {e}"
 
 def report_open_file_for_writing(state, file_path):
-    print_system(f"About to open {file_path} opened for writing")
+    print_system(f"About to open {file_path} for writing")
 
 def open_file_for_writing(state, file_path):
     state = state.open_file_for_writing(file_path)

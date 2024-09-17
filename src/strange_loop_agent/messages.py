@@ -44,7 +44,7 @@ def cache_final_two_user_messages(messages):
 
 
 def add_context_to_messages(state, messages):
-    return append_text_to_messages(messages, 'user', full_context_as_a_string(state))
+    return append_text_to_messages(messages, 'user', state_as_a_string(state))
 
 def preprocess_messages(state):
     return add_context_to_messages(state, cache_final_two_user_messages(state.messages))
@@ -64,7 +64,7 @@ def num_context_files(state):
 #    else:
 #        return '\n'.join(result)
             
-def full_context_as_a_string(state):
+def state_as_a_string(state):
     result = ["Context files: {state.context_files}"]
     for file_path in state.context_files:
         abs_path = os.path.join(state.project_dir, file_path)
@@ -75,4 +75,7 @@ def full_context_as_a_string(state):
         #except Exception as e:
         #    file_content = str(e)
         result.append(f"File path: {file_path}\nFile contents:\n{file_content}")
-    return '\n\n\n\n'.join(result)
+    result = '\n\n\n\n'.join(result)
+    if state.file_for_writing is not None:
+        result = result + f'You have {state.file_for_writing} open.  Anything you say will go straight to this file.  So only say code!  You must say the full code file.  You cannot e.g. say that the rest of the code is the same.'
+    return result
