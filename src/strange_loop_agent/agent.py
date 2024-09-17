@@ -9,6 +9,7 @@ from typing import Optional
 from .tools import tools_anthropic, tools_openai, tools_internal, run_command_in_shell
 from .formatting import print_assistant, input_user, print_system, print_ua, print_internal_error, print_code
 from .messages import preprocess_messages, append_text_to_messages, append_content_to_messages
+from .diff import diff
 
 
 #### App state:
@@ -148,7 +149,16 @@ def update_state_assistant(state):
             else:
                 # Text in file write mode.
                 print_system(f"About to write the following to {state.file_for_writing}")
-                print_code(block.text)
+                proposed_text = block.text
+
+                abs_path = os.path.join(state.project_dir, state.file_for_writing)
+                if os.path.exists(abs_path):
+                    with open(abs_path, 'r') as current_file:
+                        original_text = current_file.read()
+                    print(diff(original_text, proposed_text, "original", "proposed"))
+                else:
+                    print_code(proposed_text)
+
                 user_refused_permission = not confirm_proceed()
                 if user_refused_permission:
                     result = "User refused permission to write the file"
