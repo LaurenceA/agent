@@ -35,6 +35,12 @@ def close_all_files():
     open_files = set()
     return "All files closed"
 
+def report_open_files():
+    print_system("About to report all the open files")
+
+def _open_files():
+    return 'Open files:\n' + '\n'.join(open_files)
+
 file_tools_internal["open_file"] ={
     "function" : open_file,
     "report_function" : report_open_file,
@@ -51,6 +57,7 @@ file_tools_internal["open_file"] ={
         "required": ["file_path"],
     }
 }
+
 
 file_tools_internal["close_file"] ={
     "function" : close_file,
@@ -70,9 +77,22 @@ file_tools_internal["close_file"] ={
 }
 
 file_tools_internal["close_all_files"] ={
-    "function" : report_close_all_files,
-    "report_function" : report_close_file,
+    "function" : close_all_files,
+    "report_function" : report_close_all_files,
     "description" : "Closes all open files. So there are now no files having their contents placed at the start of every prompt",
+    "long_args": [],
+    "input_schema" : {
+        "type": "object",
+        "properties": {
+        },
+        "required": [],
+    }
+}
+
+file_tools_internal["open_files"] ={
+    "function" : _open_files,
+    "report_function" : report_open_files,
+    "description" : "Reports all the currently open files.",
     "long_args": [],
     "input_schema" : {
         "type": "object",

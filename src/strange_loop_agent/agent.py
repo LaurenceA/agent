@@ -26,7 +26,9 @@ Don't ask for permission.  Just call the tools.  The agent wrapper handles askin
 
 Try to minimize the number of files you have open.  Make sure that you only have open the files you need!
 
-Any time you want to write a file, put the code in the `code` argument of the write_file function.
+Do not tell the user the open files unless specifically asked.
+
+Any time you want to write or overwrite a file, put the code in the `code` argument of the write_file function.
 
 A brief description of the system you are running on:
 OS name: {call_terminal('uname -s')}
@@ -166,10 +168,11 @@ def get_and_process_response(persistent_messages):
 
             user_refused_permission = False
             if not all_required_args_present:
-                result = f"{function_name} requires {required_args}, but given {[*args.keys()]}"
+                result = f"Tool {function_name} requires arguments {required_args}, but given {[*args.keys()]}"
                 print(output_messages)
             else:
-                tools_internal[function_name]['report_function'](**args)
+                #Call the report function.  It should print directly, and not return anything.
+                assert tools_internal[function_name]['report_function'](**args) is None
                 user_refused_permission = not confirm_proceed()
 
                 if user_refused_permission:
