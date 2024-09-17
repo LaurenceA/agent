@@ -6,7 +6,7 @@ import readline #Just importing readline enables nicer features for the builtin 
 
 from .tools import tools_anthropic, tools_openai, tools_internal, run_command_in_shell
 from .formatting import print_assistant, input_user, print_system, print_ua, print_internal_error
-from .files import validate_open_files, string_for_all_open_files, num_open_files, project_dir
+from .files import validate_context_files, full_context_as_a_string, num_context_files, project_dir
 
 client = anthropic.Anthropic()
 
@@ -75,9 +75,9 @@ def cache_final_two_user_messages(messages):
 
     return messages
 
-def add_open_files_to_messages(messages):
+def add_context_to_messages(messages):
     messages = [*messages]
-    if 1 <= len(messages) and 1 <= num_open_files():
+    if 1 <= len(messages) and 1 <= num_context_files():
         assert messages[-1]["role"] == "user"
 
         messages[-1]            = {**messages[-1]}
@@ -85,7 +85,7 @@ def add_open_files_to_messages(messages):
 
         messages[-1]["content"].append({
             "type" : "text",
-            "text" : string_for_all_open_files(),
+            "text" : full_context_as_a_string(),
         })
 
     return messages
@@ -99,7 +99,7 @@ def get_and_process_response(persistent_messages):
     #The last message must be a user message.
     assert messages[-1]["role"] == "user"
 
-    preprocessed_messages = add_open_files_to_messages(cache_final_two_user_messages(persistent_messages))
+    preprocessed_messages = add_context_to_messages(cache_final_two_user_messages(persistent_messages))
 
     print_ua("\nAssistant:")
 

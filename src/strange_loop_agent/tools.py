@@ -2,7 +2,7 @@ import os
 import subprocess
 
 from .formatting import print_system, print_code
-from .files import file_tools_internal, open_files
+from .files import file_tools_internal, context_files
 
 tools_internal = {**file_tools_internal}
 
@@ -97,7 +97,7 @@ def write_file(file_path, code):
     try:
         with open(file_path, 'w') as file:
             file.write(code)
-        open_files.add(file_path)
+        context_files.add(file_path)
         
         return "File written successfully"
     except Exception as e:
