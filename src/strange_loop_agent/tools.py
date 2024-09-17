@@ -2,14 +2,15 @@ import os
 import subprocess
 
 from .formatting import print_system, print_code
-from .context import context_tools_internal, context_files
+from .context import context_tools_internal
+from .write import write_tools_internal
 
-tools_internal = {**context_tools_internal}
+tools_internal = {**context_tools_internal, **write_tools_internal}
 
-def report_run_command_in_shell(command):
+def report_run_command_in_shell(state, command):
     print_system(f"About to run command in shell: {command}")
 
-def run_command_in_shell(command):
+def run_command_in_shell(state, command):
     result = subprocess.run(command, shell=True, capture_output=True, text=True)
 
     stdout = result.stdout.strip()
@@ -20,7 +21,7 @@ def run_command_in_shell(command):
     if stderr:
         output = output + 'stderr:\n' + stderr
 
-    return output
+    return state, output
 
 tools_internal["run_command_in_shell"] = {
     "function" : run_command_in_shell,
@@ -39,10 +40,10 @@ tools_internal["run_command_in_shell"] = {
     },
 }
 
-def list_files(path):
+def list_files(state, path):
     return run_command_in_shell(f"find {path} -type f -not -path '*/\\.*'")
 
-def report_list_files(path):
+def report_list_files(state, path):
     print_system(f"About to list files in {path}")
 
 tools_internal["list_files"] = {
@@ -63,63 +64,35 @@ tools_internal["list_files"] = {
 }
 
 
-#def plus(a, b):
-#    return str(int(a) + int(b))
+
+
+
+#def change_working_directory(state, path):
+#    try:
+#        os.chdir(path)
+#        return f"Changed directory to {os.getcwd()}"
+#    except Exception as e:
+#        return f"An error occurred: {e}"
 #
-#def report_plus(a, b):
-#    print_system(f"About to add {a} and {b}")
+#def report_change_working_directory(state, path):
+#    return f"About to change directory to path"
 #
-#tools_internal["plus"] ={
-#    "function" : plus,
-#    "report_function": report_plus,
-#    "description" : "Adds two quantities",
+#tools_internal["change_working_directory"] ={
+#    "function" : change_working_directory,
+#    "report_function" : report_change_working_directory,
+#    "description" : "Changes the current working directory.  Equivalent to cd in the shell, or os.chdir in Python",
 #    "long_args": [],
 #    "input_schema" : {
 #        "type": "object",
 #        "properties": {
-#            "a": {
+#            "path": {
 #                "type": "string",
-#                "description": "The first quantity to add",
-#            },
-#            "b": {
-#                "type": "string",
-#                "description": "The second quantity to add",
-#            },
+#                "description": "The directory to move to",
+#            }
 #        },
-#        "required": ["a", "b"],
+#        "required": ["path"],
 #    }
 #}
-
-
-
-
-
-def change_working_directory(path):
-    try:
-        os.chdir(path)
-        return f"Changed directory to {os.getcwd()}"
-    except Exception as e:
-        return f"An error occurred: {e}"
-
-def report_change_working_directory(path):
-    return f"About to change directory to path"
-
-tools_internal["change_working_directory"] ={
-    "function" : change_working_directory,
-    "report_function" : report_change_working_directory,
-    "description" : "Changes the current working directory.  Equivalent to cd in the shell, or os.chdir in Python",
-    "long_args": [],
-    "input_schema" : {
-        "type": "object",
-        "properties": {
-            "path": {
-                "type": "string",
-                "description": "The directory to move to",
-            }
-        },
-        "required": ["path"],
-    }
-}
 
 
 tools_openai = []

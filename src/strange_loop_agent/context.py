@@ -2,44 +2,41 @@ import os
 
 from .formatting import print_system
 
-context_files = set() #Mutable set.
 context_tools_internal = {}
-project_dir = os.getcwd() #Must be imported as part of the first call to main if this is to work.
 
-def num_context_files():
-    return len(context_files)
-
-def report_add_file_to_context(file_path):
+def report_add_file_to_context(state, file_path):
     print_system(f"About to add {file_path} to context")
 
-def add_file_to_context(file_path):
-    abs_path = os.path.join(project_dir, file_path)
+def add_file_to_context(state, file_path):
+    abs_path = os.path.join(state.project_dir, file_path)
 
     if os.path.exists(abs_path):
-        context_files.add(file_path)
-        return f"{file_path} added to context"
+        state = state.add_file_to_context(file_path)
+        result = f"{file_path} added to context"
     else:
-        return f"{file_path} does not exist"
+        result = f"{file_path} does not exist"
 
-def report_remove_file_from_context(file_path):
+    return state, result
+
+def report_remove_file_from_context(state, file_path):
     print_system(f"About to remove {file_path} from context")
 
-def remove_file_from_context(file_path):
-    context_files.discard(file_path) # Removes without raising error is not present.
-    return f"Removed {file_path} from context"
+def discard_file_from_context(state, file_path):
+    state = state.discard_file_from_context(file_path)
+    return state, f'Discarded {file_path} from context'
 
-def report_clear_context():
+def report_clear_context(state):
     print_system("About to clear context")
 
-def clear_context():
-    open_files = set()
-    return "Context cleared"
+def clear_context(state):
+    state = state.clear_context()
+    return state, "Context cleared"
 
-def report_report_context():
+def report_report_context(state):
     print_system("About to report all files in the context")
 
-def report_context():
-    return 'Files in context:\n' + '\n'.join(open_files)
+def report_context(state):
+    return state, 'Files in context:\n' + '\n'.join(state.context_files)
 
 context_tools_internal["add_file_to_context"] ={
     "function" : add_file_to_context,
@@ -59,8 +56,8 @@ context_tools_internal["add_file_to_context"] ={
 }
 
 
-context_tools_internal["remove_file_from_context"] ={
-    "function" : remove_file_from_context,
+context_tools_internal["discard_file_from_context"] ={
+    "function" : discard_file_from_context,
     "report_function" : report_remove_file_from_context,
     "description" : "Removes a file from the context, stopping the full contents being placed in every prompt",
     "long_args": [],
@@ -101,28 +98,3 @@ context_tools_internal["report_context"] ={
         "required": [],
     }
 }
-
-def validate_context_files():
-    result = []
-    for file_path in context_files:
-        abs_path = os.path.join(project_dir, file_path)
-        if not os.path.exists(abs_path):
-            remove_file_from_context(file_path)
-            result.append(f"File in the context {file_path} does not exist; removing it from the context.")
-    if 0 == len(result):
-        return None
-    else:
-        return '\n'.join(result)
-            
-def full_context_as_a_string():
-    result = ["Context files: {context_files}"]
-    for file_path in context_files:
-        abs_path = os.path.join(project_dir, file_path)
-        with open(abs_path, 'r') as file:
-            file_content = file.read()
-        #try:
-        #    file_content = os.read(abs_path)
-        #except Exception as e:
-        #    file_content = str(e)
-        result.append(f"File path: {file_path}\nFile contents:\n{file_content}")
-    return '\n\n\n\n'.join(result)

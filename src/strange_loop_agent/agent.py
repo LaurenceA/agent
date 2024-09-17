@@ -3,10 +3,61 @@ import json
 import anthropic
 import subprocess
 import readline #Just importing readline enables nicer features for the builtin Python input.
+from dataclasses import dataclass, replace
+from typing import Optional
 
 from .tools import tools_anthropic, tools_openai, tools_internal, run_command_in_shell
 from .formatting import print_assistant, input_user, print_system, print_ua, print_internal_error
-from .context import validate_context_files, full_context_as_a_string, num_context_files, project_dir
+from .messages import preprocess_messages, append_text_to_messages, append_content_to_messages
+
+
+#### App state:
+@dataclass(frozen=True)
+class State:
+    project_dir: str                # Must be imported as part of the first call to main if this is to work.
+    context_files: set              # Set of paths from the project root directory.  Must be modified in-place!
+    file_for_writing: Optional[str] # None, or a single path from the project root directory.
+    messages: list                  # All the persistent messages.
+
+    def add_file_to_context(state, file_path):
+        context_files = {*state.context_files}
+        context_files.add(file_path)
+        return replace(state, context_files=context_files)
+
+    def discard_file_from_context(state, file_path):
+        context_files = {*state.context_files}
+        context_files.discard(file_path)
+        return replace(state, context_files=context_files)
+
+    def clear_context(state):
+        return replace(state, context_files=set())
+
+    def open_file_for_writing(state, file_path):
+        assert state.file_for_writing is None
+        return replace(state, file_for_writing=file_path)
+
+    def close_file_for_writing(state, file_path):
+        assert state.open_file is not None
+        return replace(state, file_for_writing=None)
+
+    def append_text(state, role, text, error_if_not_role_alternate=False):
+        messages = append_text_to_messages(
+            state.messages, 
+            role, 
+            text, 
+            error_if_not_role_alternate=error_if_not_role_alternate
+        )
+        return replace(state, messages=messages)
+
+    def append_content(state, role, content, error_if_not_role_alternate=False):
+        messages = append_content_to_messages(
+            state.messages, 
+            role, 
+            content, 
+            error_if_not_role_alternate=error_if_not_role_alternate
+        )
+        return replace(state, messages=messages)
+
 
 client = anthropic.Anthropic()
 
@@ -14,6 +65,7 @@ def call_terminal(command):
     stdout = subprocess.run(command, shell=True, capture_output=True, text=True).stdout
     assert 0 < len(stdout)
     return stdout.strip()
+
 
 #all_files_in_project_at_launch = call_terminal("find . -type f -not -path '*/\\.*'")
 all_files_in_project_at_launch = call_terminal("git ls-tree -r HEAD --name-only")
@@ -28,8 +80,6 @@ Try to minimize the number of files you have open.  Make sure that you only have
 
 Do not tell the user the open files unless specifically asked.
 
-Any time you want to write or overwrite a file, put the code in the `code` argument of the write_file function.
-
 A brief description of the system you are running on:
 OS name: {call_terminal('uname -s')}
 OS version: {call_terminal('uname -r')}
@@ -37,7 +87,7 @@ Architecture: {call_terminal('uname -m')}
 System name: {call_terminal('uname -n')}
 
 The project root directory is:
-{project_dir}
+{os.getcwd()}
 Don't navigate, or modify anything outside, this directory.
 
 The files currently tracked by git are:
@@ -54,52 +104,17 @@ def confirm_proceed():
         else:
             print_system("Invalid input. Please enter 'y' or 'n'.")
 
-def cache_final_two_user_messages(messages):
-    """
-    Mirrors the strategy in https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching#continuing-a-multi-turn-conversation
 
-    Does not modify the argument in-place.
-    """
-
-    messages = [*messages]
-    if 1 <= len(messages):
-        assert messages[-1]["role"] == "user"
-        messages[-1]               = {**messages[-1]}
-        messages[-1]["content"]    = [ *messages[-1]["content"]]
-        messages[-1]["content"][0] = {**messages[-1]["content"][0], "cache_control" : {"type": "ephemeral"}}
-
-    if 3 <= len(messages):
-        messages[-3]               = {**messages[-3]}
-        messages[-3]["content"]    = [ *messages[-3]["content"]]
-        messages[-3]["content"][0] = {**messages[-3]["content"][0], "cache_control" : {"type": "ephemeral"}}
-
-    return messages
-
-def add_context_to_messages(messages):
-    messages = [*messages]
-    if 1 <= len(messages) and 1 <= num_context_files():
-        assert messages[-1]["role"] == "user"
-
-        messages[-1]            = {**messages[-1]}
-        messages[-1]["content"] = [ *messages[-1]["content"]]
-
-        messages[-1]["content"].append({
-            "type" : "text",
-            "text" : full_context_as_a_string(),
-        })
-
-    return messages
-
-
-def get_and_process_response(persistent_messages):
+def update_state_assistant(state):
     """
     Takes user input, and does the things ...
     """ 
+    print(state)
     
     #The last message must be a user message.
-    assert messages[-1]["role"] == "user"
+    assert state.messages[-1]["role"] == "user"
 
-    preprocessed_messages = add_context_to_messages(cache_final_two_user_messages(persistent_messages))
+    preprocessed_messages = preprocess_messages(state)
 
     print_ua("\nAssistant:")
 
@@ -119,18 +134,13 @@ def get_and_process_response(persistent_messages):
     #print(response.usage.cache_creation_input_tokens)
     #print(response.usage.cache_read_input_tokens)
 
-    output_messages = [*persistent_messages]
-
     for block in response.content:
         if block.type == 'text':
-            output_messages.append({
-                "role" : "assistant",
-                "content": [{
-                    "type": "text",
-                    "text": block.text,
-                }],
-            })
-            print_assistant(block.text)
+            if state.file_for_writing is None:
+                state = state.append_text("assistant", block.text)
+                print_assistant(block.text)
+            else:
+                print(f"Write the following to {state.file_for_writing} (y/n)?\n{block.text}")
 
         elif block.type == 'tool_use':
             function_name = block.name
@@ -151,14 +161,8 @@ def get_and_process_response(persistent_messages):
                 "input": abbreviated_args,
             }
 
-            #The tool call has an assistant role, so would usually be appended to the content of the previous text block.
-            if output_messages[-1]["role"] == "assistant":
-                output_messages[-1]["content"].append(tool_call)
-            else:
-                output_messages.append({
-                    "role": "assistant",
-                    "content": [tool_call],
-                })
+            #The tool call has an assistant role.
+            state = state.append_content("assistant", tool_call)
 
             #Append the tool call result to messages, with a user role
             #If the user refuses to run the tool call, then have "User refused the use of the tool" as the result.
@@ -172,14 +176,18 @@ def get_and_process_response(persistent_messages):
                 print(output_messages)
             else:
                 #Call the report function.  It should print directly, and not return anything.
-                assert tools_internal[function_name]['report_function'](**args) is None
+                assert tools_internal[function_name]['report_function'](state, **args) is None
                 user_refused_permission = not confirm_proceed()
 
                 if user_refused_permission:
                     result = "User refused the use of the tool."
                 else:
                     function = tools_internal[function_name]['function']
-                    result = function(**args)
+
+                    #Running the function shouldn't change messages.
+                    prev_messages = state.messages
+                    state, result = function(state, **args)
+                    assert state.messages is prev_messages
 
             tool_use_result_content = {
                 "type": "tool_result",
@@ -187,47 +195,43 @@ def get_and_process_response(persistent_messages):
                 "content" : result,
             }
                 
-            output_messages.append({
-                "role": "user",
-                "content": [
-                    tool_use_result_content,
-                ]
-            })
+            #Tool result has role user.
+            state = state.append_content("user", tool_use_result_content)
 
             print_system(result)
  
             #If the user refused to use the tool, pass back immediately to user to provide more context.
             #Otherwise, recursively call LLM
             if not user_refused_permission:
-                output_messages = get_and_process_response(output_messages)
+                state = update_state_assistant(state)
             
         else:
             print_internal_error(block)
 
-    return output_messages
-    
-messages = []
+    return state
+
+def update_state_user(state, user_input):
+    """
+    Handles a user message.
+    """
+
+    #Dialogue must alternate between assistant and user.
+    #If the previous message was a user message (because a tool call was refused), then append to that user message.
+    #Otherwise, start a new user message.
+    return state.append_text("user", user_input)
+
+state = State(
+    project_dir = os.getcwd(),
+    context_files = set(),
+    file_for_writing = None,
+    messages = [],
+)
+
 while True:
     print_ua('\nUser:')
     user_input = input_user().strip()
     if user_input == "exit":
         break
-    elif user_input == "clear_context":
-        messages = []
     else:
-        user_content = {
-            "type": "text",
-            "text": user_input,
-        }
-        
-        #Dialogue must alternate between assistant and user.
-        #If the previous message was a user message (because a tool call was refused), then append to that user message.
-        #Otherwise, start a new user message.
-        if len(messages) > 0 and messages[-1]["role"] == "user":
-            messages[-1]["content"].append(user_content)
-        else:
-            messages.append({
-                "role": "user",
-                "content": [user_content],
-            })
-        messages = get_and_process_response(messages)
+        state = update_state_user(state, user_input)
+        state = update_state_assistant(state)
