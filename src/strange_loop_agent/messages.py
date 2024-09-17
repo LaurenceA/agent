@@ -51,30 +51,17 @@ def preprocess_messages(state):
 
 def num_context_files(state):
     return len(state.context_files)
-    
-#def validate_context_files(state):
-#    result = []
-#    for file_path in state.context_files:
-#        abs_path = os.path.join(state.project_dir, file_path)
-#        if not os.path.exists(abs_path):
-#            remove_file_from_context(state, file_path)
-#            result.append(f"File in the context {file_path} does not exist; removing it from the context.")
-#    if 0 == len(result):
-#        return None
-#    else:
-#        return '\n'.join(result)
             
 def state_as_a_string(state):
     result = ["Context files: {state.context_files}"]
     for file_path in state.context_files:
         abs_path = os.path.join(state.project_dir, file_path)
-        with open(abs_path, 'r') as file:
-            file_content = file.read()
-        #try:
-        #    file_content = os.read(abs_path)
-        #except Exception as e:
-        #    file_content = str(e)
-        result.append(f"File path: {file_path}\nFile contents:\n{file_content}")
+        try:
+            with open(abs_path, 'r') as file:
+                file_content = file.read()
+            result.append(f"File path: {file_path}\nFile contents:\n{file_content}")
+        except Exception as e:
+            result.append(f"File path: {file_path}\nError loading file:\n{e}")
     result = '\n\n\n\n'.join(result)
     if state.file_for_writing is not None:
         result = result + f'You have {state.file_for_writing} open.  Anything you say will go straight to this file.  So only say code!  You must say the full code file.  You cannot e.g. say that the rest of the code is the same.'

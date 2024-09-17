@@ -41,7 +41,7 @@ tools_internal["run_command_in_shell"] = {
 }
 
 def list_files(state, path):
-    return run_command_in_shell(f"find {path} -type f -not -path '*/\\.*'")
+    return run_command_in_shell(state, f"find {path} -type f -not -path '*/\\.*'")
 
 def report_list_files(state, path):
     print_system(f"About to list files in {path}")
