@@ -52,7 +52,6 @@ This will install the package in editable mode, allowing you to make changes to 
 
 ## TODOs:
 
-* Not used to instructions in tool return.  So put the instructions in a user block.
 * Reductions in context + context tool use:
   - Takes fully cached messages, including summaries.
   - Runs a special prompt asking for the context required for that query.
@@ -73,7 +72,7 @@ This will install the package in editable mode, allowing you to make changes to 
 
 ## Improvements:
 
-* Refine the prompt when in "file-writing" mode.  e.g. state whether the file exists.  Add the file to context etc.
+* Rewrite the printed text to show diffs for file writes.
 * Open sub-parts of files, based on info in the summary.
 * Optimize prompt caching.
 * Input format.  Arrows work through readline.  But don't have e.g. multi-line input.

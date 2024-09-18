@@ -24,26 +24,28 @@ class State:
     strong_model: Model             # Strong model
     messages: list                  # All the persistent messages.
 
-    def add_file_to_context(state, file_path):
-        context_files = {*state.context_files}
-        context_files.add(file_path)
-        return replace(state, context_files=context_files)
+    def track_file(self, path):
+        return replace(state, tracked_files=[*self.tracked_files, path])
+    #def add_file_to_context(state, file_path):
+    #    context_files = {*state.context_files}
+    #    context_files.add(file_path)
+    #    return replace(state, context_files=context_files)
 
-    def discard_file_from_context(state, file_path):
-        context_files = {*state.context_files}
-        context_files.discard(file_path)
-        return replace(state, context_files=context_files)
+    #def discard_file_from_context(state, file_path):
+    #    context_files = {*state.context_files}
+    #    context_files.discard(file_path)
+    #    return replace(state, context_files=context_files)
 
-    def clear_context(state):
-        return replace(state, context_files=set())
+    #def clear_context(state):
+    #    return replace(state, context_files=set())
 
-    def open_file_for_writing(state, file_path):
-        assert state.file_for_writing is None
-        return replace(state, file_for_writing=file_path)
+    #def open_file_for_writing(state, file_path):
+    #    assert state.file_for_writing is None
+    #    return replace(state, file_for_writing=file_path)
 
-    def close_file_for_writing(state):
-        assert state.file_for_writing is not None
-        return replace(state, file_for_writing=None)
+    #def close_file_for_writing(state):
+    #    assert state.file_for_writing is not None
+    #    return replace(state, file_for_writing=None)
 
     def append_text(state, role, text, error_if_not_role_alternate=False):
         messages = append_text_to_messages(
@@ -106,7 +108,6 @@ Try to minimize the number of files you have in the context.  Discard any files 
 When you want to write to a file, use the following format:
 {file_open_delimiter}path/to/file
 <file contents>{file_close_delimiter}
-
 These files are automatically written successfully.
 
 A brief description of the system you are running on:
@@ -162,14 +163,32 @@ def update_state_assistant(state):
             # Standard text response.
             state = state.append_text("assistant", block.text)
             print_assistant(block.text)
-            for path, content in parse_file_writes(block.text):
-                abs_path = os.path.join(state.project_dir, state.file_for_writing)
-                if os.path.exists(abs_path):
-                    with open(abs_path, 'r') as current_file:
-                        original_text = current_file.read()
-                    print(diff(original_text, proposed_text, "original", "proposed"))
-                else:
-                    print_code(proposed_text)
+
+            #for path, proposed_text in parse_file_writes(block.text):
+            #    abs_path = os.path.join(state.project_dir, path)
+            #    if os.path.exists(abs_path):
+            #        with open(abs_path, 'r') as current_file:
+            #            original_text = current_file.read()
+            #        print(diff(original_text, proposed_text, "original", "proposed"))
+            #    else:
+            #        print_code(proposed_text)
+
+            errors = []
+            user_refused_permission = not confirm_proceed()
+            if user_refused_permission:
+                errors.append("User refused permission")
+            else:
+                for path, proposed_text in parse_file_writes(block.text):
+                    abs_path = os.path.join(state.project_dir, path)
+                    try:
+                        with open(abs_path, 'w') as file:
+                            file.write(proposed_text)
+                        state = state.track_file(path)
+                    except Exception as e:
+                        errors.append(f"An error occured writing {path}: {e}")
+            if 0 < len(errors):
+                errors = '\n'.join(errors)
+                state = state.append_text("user", errors)
 
                 
             #else:

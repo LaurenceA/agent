@@ -1,7 +1,7 @@
 import re
 
 file_open_delimiter = "!!Write file!! "
-file_close_delimiter = "\n!!File written succesfully!!"
+file_close_delimiter = "\n!!File written successfully!!"
 
 def parse_file_writes(text):
     open_delimiter_locations = [m.end() for m in re.finditer(file_open_delimiter, text)]
