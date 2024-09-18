@@ -18,6 +18,7 @@ class State:
     project_dir: str                # Must be imported as part of the first call to main if this is to work.
     context_files: set              # Set of paths from the project root directory.  Must be modified in-place!
     file_for_writing: Optional[str] # None, or a single path from the project root directory.
+    tracked_files: list             # List of files tracked by the LLM.
     messages: list                  # All the persistent messages.
 
     def add_file_to_context(state, file_path):
@@ -58,6 +59,25 @@ class State:
             error_if_not_role_alternate=error_if_not_role_alternate
         )
         return replace(state, messages=messages)
+
+def initialize_state():
+    #Set up tracked files
+    git_ls_files = subprocess.run('git ls-files', shell=True, capture_output=True, text=True)
+    if git_ls_files.returncode == 0:
+        #Use git's tracked files if git exists, and we are in a pre-existing repo.
+        tracked_files = git_ls_files.stdout.strip().split('\n')
+    else:
+        #Use git's tracked files if git exists, and we are in a pre-existing repo.
+        raise NotImplementedError()
+
+    return State(
+        project_dir = os.getcwd(),
+        context_files = set(),
+        file_for_writing = None,
+        tracked_files = tracked_files,
+        messages = [],
+    )
+        
 
 
 client = anthropic.Anthropic()
@@ -257,12 +277,7 @@ def update_state_user(state, user_input):
     #Otherwise, start a new user message.
     return state.append_text("user", user_input)
 
-state = State(
-    project_dir = os.getcwd(),
-    context_files = set(),
-    file_for_writing = None,
-    messages = [],
-)
+state = initialize_state()
 
 while True:
     print_ua('\nUser:')

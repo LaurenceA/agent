@@ -52,11 +52,17 @@ This will install the package in editable mode, allowing you to make changes to 
 
 ## TODOs:
 
-* Persistent summary of project.
-  - One summary for each file in the project.
-  - The summary is associated with a hash for the file.
-  - When you use the summary, check the file hashes.
-  - Summary contains info on all functions/classes/globals.
+* Reductions in context + context tool use:
+  - Takes fully cached messages, including summaries.
+  - Runs a special prompt asking for the context required for that query.
+* Tracked files
+  - This is a new component of the state, describing all files tracked by the agent.
+  - Starts as all files tracked by git, if project is a git repo (git ls-files).
+  - Otherwise, pass all files to GPT-4o mini.
+  - Tools to add files to tracked files.  Automatically add new files to tracked files.
+  - Tracked files are associated with a current summary and a file hash.
+  - The summaries come from GPT-4o mini / tree-sitter.
+  - The summaries come with line ranges, which can also be opened.
 * Internet search, especially for documentation.
   - Google search / Bing API.
   - Use 4o-mini to convert website?  Or a library like Mozilla's readability
@@ -70,5 +76,4 @@ This will install the package in editable mode, allowing you to make changes to 
 * Open sub-parts of files, based on info in the summary.
 * Optimize prompt caching.
 * Input format.  Arrows work through readline.  But don't have e.g. multi-line input.
-
 * Hard-code context / file printing stuff 
