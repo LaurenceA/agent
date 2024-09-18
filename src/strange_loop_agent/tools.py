@@ -3,9 +3,8 @@ import subprocess
 
 from .formatting import print_system, print_code
 from .context import context_tools_internal
-from .write import write_tools_internal
 
-tools_internal = {}#{**context_tools_internal}#, **write_tools_internal}
+tools_internal = {}
 
 def report_run_command_in_shell(state, command):
     print_system(f"About to run command in shell: {command}")
@@ -40,56 +39,25 @@ tools_internal["run_command_in_shell"] = {
     },
 }
 
-#def list_files(state, path):
-#    return run_command_in_shell(state, f"find {path} -type f -not -path '*/\\.*'")
+#def report_track_file(state, path):
+#    print_system(f"About to add tracked file: {path}")
 #
-#def report_list_files(state, path):
-#    print_system(f"About to list files in {path}")
+#def track_file(state, path):
+#    return state, f"Successfully tracked {path}"
 #
-#tools_internal["list_files"] = {
-#    "function" : list_files,
-#    "report_function": report_list_files,
-#    "description" : "Lists all files in the specified directory and in subdirectories. Excludes hidden files, or files in hidden directories. This tool is implemented by calling the linux `find` shell command.",
+#tools_internal["track_file"] = {
+#    "function" : track_file,
+#    "report_function": report_track_file,
+#    "description" : "Tracks a file, so that a summary is presented in the context. All the files in the repo + any new files that are written by the agent are automatically tracked, so do not need to be added using this tool.",
 #    "long_args": [],
 #    "input_schema" : {
 #        "type": "object",
 #        "properties": {
 #            "path": {
 #                "type": "string",
-#                "description": "The path, from the current working directory",
-#            }
+#                "description": "The path to the file to be tracked",
+#            },
 #        },
 #        "required": ["path"],
-#    }
-#}
-
-
-
-
-
-#def change_working_directory(state, path):
-#    try:
-#        os.chdir(path)
-#        return f"Changed directory to {os.getcwd()}"
-#    except Exception as e:
-#        return f"An error occurred: {e}"
-#
-#def report_change_working_directory(state, path):
-#    return f"About to change directory to path"
-#
-#tools_internal["change_working_directory"] ={
-#    "function" : change_working_directory,
-#    "report_function" : report_change_working_directory,
-#    "description" : "Changes the current working directory.  Equivalent to cd in the shell, or os.chdir in Python",
-#    "long_args": [],
-#    "input_schema" : {
-#        "type": "object",
-#        "properties": {
-#            "path": {
-#                "type": "string",
-#                "description": "The directory to move to",
-#            }
-#        },
-#        "required": ["path"],
-#    }
+#    },
 #}

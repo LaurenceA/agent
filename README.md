@@ -1,5 +1,4 @@
 # Strange Loop Agent
-
 This is a Python package for the Strange Loop Agent project.
 
 ## Installation
@@ -52,6 +51,8 @@ This will install the package in editable mode, allowing you to make changes to 
 
 ## TODOs:
 
+* Print diffs for file writes.
+* Keep line numbers out of summary.  Store them separately, so that you can update them easily.
 * Reductions in context + context tool use:
   - Takes fully cached messages, including summaries.
   - Runs a special prompt asking for the context required for that query.
@@ -72,8 +73,4 @@ This will install the package in editable mode, allowing you to make changes to 
 
 ## Improvements:
 
-* Rewrite the printed text to show diffs for file writes.
 * Open sub-parts of files, based on info in the summary.
-* Optimize prompt caching.
-* Input format.  Arrows work through readline.  But don't have e.g. multi-line input.
-* Hard-code context / file printing stuff 

@@ -2,100 +2,18 @@ import os
 import json
 import subprocess
 import readline #Just importing readline enables nicer features for the builtin Python input.
-from dataclasses import dataclass, replace
-from typing import Optional
 
 from .formatting import print_assistant, input_user, print_system, print_ua, print_internal_error, print_code
-from .messages import preprocess_messages, append_text_to_messages, append_content_to_messages
 from .diff import diff
 from .tools import tools_internal
 from .parse_file_writes import file_open_delimiter, file_close_delimiter, parse_file_writes
-
-from .models import Model, OpenAIModel, AnthropicModel
-
-#### App state:
-@dataclass(frozen=True)
-class State:
-    project_dir: str                # Must be imported as part of the first call to main if this is to work.
-    context_files: set              # Set of paths from the project root directory.  Must be modified in-place!
-    file_for_writing: Optional[str] # None, or a single path from the project root directory.
-    tracked_files: list             # List of files tracked by the LLM.
-    weak_model: Model               # Weak model
-    strong_model: Model             # Strong model
-    messages: list                  # All the persistent messages.
-
-    def track_file(self, path):
-        return replace(state, tracked_files=[*self.tracked_files, path])
-    #def add_file_to_context(state, file_path):
-    #    context_files = {*state.context_files}
-    #    context_files.add(file_path)
-    #    return replace(state, context_files=context_files)
-
-    #def discard_file_from_context(state, file_path):
-    #    context_files = {*state.context_files}
-    #    context_files.discard(file_path)
-    #    return replace(state, context_files=context_files)
-
-    #def clear_context(state):
-    #    return replace(state, context_files=set())
-
-    #def open_file_for_writing(state, file_path):
-    #    assert state.file_for_writing is None
-    #    return replace(state, file_for_writing=file_path)
-
-    #def close_file_for_writing(state):
-    #    assert state.file_for_writing is not None
-    #    return replace(state, file_for_writing=None)
-
-    def append_text(state, role, text, error_if_not_role_alternate=False):
-        messages = append_text_to_messages(
-            state.messages, 
-            role, 
-            text, 
-            error_if_not_role_alternate=error_if_not_role_alternate
-        )
-        return replace(state, messages=messages)
-
-    def append_content(state, role, content, error_if_not_role_alternate=False):
-        messages = append_content_to_messages(
-            state.messages, 
-            role, 
-            content, 
-            error_if_not_role_alternate=error_if_not_role_alternate
-        )
-        return replace(state, messages=messages)
-
-def initialize_state():
-    #Set up tracked files
-    git_ls_files = subprocess.run('git ls-files', shell=True, capture_output=True, text=True)
-    if git_ls_files.returncode == 0:
-        #Use git's tracked files if git exists, and we are in a pre-existing repo.
-        tracked_files = git_ls_files.stdout.strip().split('\n')
-    else:
-        #Use git's tracked files if git exists, and we are in a pre-existing repo.
-        raise NotImplementedError()
-
-    return State(
-        project_dir = os.getcwd(),
-        context_files = set(),
-        file_for_writing = None,
-        tracked_files = tracked_files,
-        weak_model = OpenAIModel('gpt-4o-mini', max_tokens=1000),
-        #strong_model = AnthropicModel('claude-3-5-sonnet-20240620', max_tokens=1000),
-        strong_model = AnthropicModel('claude-3-haiku-20240307', max_tokens=4096),
-        messages = [],
-    )
-        
-
+from .state import initialize_state
+from .summarize import summarize
 
 def call_terminal(command):
     stdout = subprocess.run(command, shell=True, capture_output=True, text=True).stdout
     assert 0 < len(stdout)
     return stdout.strip()
-
-
-#all_files_in_project_at_launch = call_terminal("find . -type f -not -path '*/\\.*'")
-all_files_in_project_at_launch = call_terminal("git ls-tree -r HEAD --name-only")
 
 system_message = f"""You are a part of an agentic system for programming.
 
@@ -121,8 +39,6 @@ The project root directory is:
 Don't navigate, or modify anything outside, this directory.
 
 """
-#The files currently tracked by git are:
-#{all_files_in_project_at_launch}
 
 def confirm_proceed():
     while True:
@@ -145,17 +61,9 @@ def update_state_assistant(state):
     #The last message must be a user message.
     assert state.messages[-1]["role"] == "user"
 
-    preprocessed_messages = preprocess_messages(state)
-
     print_ua("\nAssistant:")
 
-    #print(preprocessed_messages)
-
-    response = state.strong_model.response_cache(system_message, state.messages)
-
-    if state.file_for_writing is not None:
-        assert 1 == len(response.content)
-        assert response.content[0].type == 'text'
+    response = state.assistant_api_call(system_message)
 
     for block in response.content:
         if block.type == 'text':
@@ -173,22 +81,23 @@ def update_state_assistant(state):
             #    else:
             #        print_code(proposed_text)
 
-            errors = []
-            user_refused_permission = not confirm_proceed()
-            if user_refused_permission:
-                errors.append("User refused permission")
-            else:
-                for path, proposed_text in parse_file_writes(block.text):
-                    abs_path = os.path.join(state.project_dir, path)
-                    try:
-                        with open(abs_path, 'w') as file:
-                            file.write(proposed_text)
-                        state = state.track_file(path)
-                    except Exception as e:
-                        errors.append(f"An error occured writing {path}: {e}")
-            if 0 < len(errors):
-                errors = '\n'.join(errors)
-                state = state.append_text("user", errors)
+            parsed_file_writes = parse_file_writes(block.text)
+            if 0 < len(parsed_file_writes):
+                errors = []
+                user_refused_permission = not confirm_proceed()
+                if user_refused_permission:
+                    errors.append("User refused permission")
+                else:
+                    for path, proposed_text in parse_file_writes(block.text):
+                        try:
+                            with open(state.abs_path(path), 'w') as file:
+                                file.write(proposed_text)
+                            state = state.track_file(path)
+                        except Exception as e:
+                            errors.append(f"An error occured writing {path}: {e}")
+                if 0 < len(errors):
+                    errors = '\n'.join(errors)
+                    state = state.append_text("user", errors)
 
                 
             #else:

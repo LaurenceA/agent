@@ -20,28 +20,3 @@ def append_content_to_messages(messages, role, content, error_if_not_role_altern
         #Role has alternated, so we need a new message.
         messages.append({"role": role, "content": [content]})
     return messages
-
-
-def add_context_to_messages(state, messages):
-    return append_text_to_messages(messages, 'user', state_as_a_string(state))
-
-def preprocess_messages(state):
-    return add_context_to_messages(state, state.messages)
-
-def num_context_files(state):
-    return len(state.context_files)
-            
-def state_as_a_string(state):
-    result = ["Context files: {state.context_files}"]
-    for file_path in state.context_files:
-        abs_path = os.path.join(state.project_dir, file_path)
-        try:
-            with open(abs_path, 'r') as file:
-                file_content = file.read()
-            result.append(f"File path: {file_path}\nFile contents:\n{file_content}")
-        except Exception as e:
-            result.append(f"File path: {file_path}\nError loading file:\n{e}")
-    result = '\n\n\n\n'.join(result)
-    if state.file_for_writing is not None:
-        result = result + f'You have {state.file_for_writing} open.  Anything you say will go straight to this file.  So only say code!  You must say the full code file.  You cannot e.g. say that the rest of the code is the same.'
-    return result
