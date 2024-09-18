@@ -5,7 +5,7 @@ from .formatting import print_system, print_code
 from .context import context_tools_internal
 from .write import write_tools_internal
 
-tools_internal = {**context_tools_internal, **write_tools_internal}
+tools_internal = {}#{**context_tools_internal}#, **write_tools_internal}
 
 def report_run_command_in_shell(state, command):
     print_system(f"About to run command in shell: {command}")
@@ -40,28 +40,28 @@ tools_internal["run_command_in_shell"] = {
     },
 }
 
-def list_files(state, path):
-    return run_command_in_shell(state, f"find {path} -type f -not -path '*/\\.*'")
-
-def report_list_files(state, path):
-    print_system(f"About to list files in {path}")
-
-tools_internal["list_files"] = {
-    "function" : list_files,
-    "report_function": report_list_files,
-    "description" : "Lists all files in the specified directory and in subdirectories. Excludes hidden files, or files in hidden directories. This tool is implemented by calling the linux `find` shell command.",
-    "long_args": [],
-    "input_schema" : {
-        "type": "object",
-        "properties": {
-            "path": {
-                "type": "string",
-                "description": "The path, from the current working directory",
-            }
-        },
-        "required": ["path"],
-    }
-}
+#def list_files(state, path):
+#    return run_command_in_shell(state, f"find {path} -type f -not -path '*/\\.*'")
+#
+#def report_list_files(state, path):
+#    print_system(f"About to list files in {path}")
+#
+#tools_internal["list_files"] = {
+#    "function" : list_files,
+#    "report_function": report_list_files,
+#    "description" : "Lists all files in the specified directory and in subdirectories. Excludes hidden files, or files in hidden directories. This tool is implemented by calling the linux `find` shell command.",
+#    "long_args": [],
+#    "input_schema" : {
+#        "type": "object",
+#        "properties": {
+#            "path": {
+#                "type": "string",
+#                "description": "The path, from the current working directory",
+#            }
+#        },
+#        "required": ["path"],
+#    }
+#}
 
 
 
@@ -93,23 +93,3 @@ tools_internal["list_files"] = {
 #        "required": ["path"],
 #    }
 #}
-
-
-tools_openai = []
-tools_anthropic = []
-
-# Strip internal info like long_args and report_function, and format appropriately for the Anthropic + OpenAI APIs.
-
-for toolname, tooldef in tools_internal.items():
-    tools_anthropic.append({
-        "name" : toolname,
-        "description": tooldef["description"],
-        "input_schema": tooldef["input_schema"],
-    })
-    tools_openai.append({
-        "name" : toolname,
-        "description" : tooldef["description"],
-        "parameters" : tooldef["input_schema"],
-        "additional_parameter" : False,
-    })
-

@@ -17,7 +17,7 @@ def report_open_file_for_writing(state, file_path):
 
 def open_file_for_writing(state, file_path):
     state = state.open_file_for_writing(file_path)
-    return state, f"{file_path} opened for writing"
+    return state, f"{file_path} opened for writing.  Just write the code to go in this file and nothing else.  When you're finished writing the file, say ##FINISHED_WRITING_FILE##"
      
 
 write_tools_internal["open_file_for_writing"] ={

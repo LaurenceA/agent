@@ -1,16 +1,17 @@
 import os
 import json
-import anthropic
 import subprocess
 import readline #Just importing readline enables nicer features for the builtin Python input.
 from dataclasses import dataclass, replace
 from typing import Optional
 
-from .tools import tools_anthropic, tools_openai, tools_internal, run_command_in_shell
 from .formatting import print_assistant, input_user, print_system, print_ua, print_internal_error, print_code
 from .messages import preprocess_messages, append_text_to_messages, append_content_to_messages
 from .diff import diff
+from .tools import tools_internal
+from .parse_file_writes import file_open_delimiter, file_close_delimiter, parse_file_writes
 
+from .models import Model, OpenAIModel, AnthropicModel
 
 #### App state:
 @dataclass(frozen=True)
@@ -19,6 +20,8 @@ class State:
     context_files: set              # Set of paths from the project root directory.  Must be modified in-place!
     file_for_writing: Optional[str] # None, or a single path from the project root directory.
     tracked_files: list             # List of files tracked by the LLM.
+    weak_model: Model               # Weak model
+    strong_model: Model             # Strong model
     messages: list                  # All the persistent messages.
 
     def add_file_to_context(state, file_path):
@@ -75,12 +78,13 @@ def initialize_state():
         context_files = set(),
         file_for_writing = None,
         tracked_files = tracked_files,
+        weak_model = OpenAIModel('gpt-4o-mini', max_tokens=1000),
+        #strong_model = AnthropicModel('claude-3-5-sonnet-20240620', max_tokens=1000),
+        strong_model = AnthropicModel('claude-3-haiku-20240307', max_tokens=4096),
         messages = [],
     )
         
 
-
-client = anthropic.Anthropic()
 
 def call_terminal(command):
     stdout = subprocess.run(command, shell=True, capture_output=True, text=True).stdout
@@ -99,7 +103,11 @@ Don't ask for permission.  Just call the tools.  The agent wrapper handles askin
 
 Try to minimize the number of files you have in the context.  Discard any files from the context you don't need.
 
-Do not tell the user the open files unless specifically asked.
+When you want to write to a file, use the following format:
+{file_open_delimiter}path/to/file
+<file contents>{file_close_delimiter}
+
+These files are automatically written successfully.
 
 A brief description of the system you are running on:
 OS name: {call_terminal('uname -s')}
@@ -111,9 +119,9 @@ The project root directory is:
 {os.getcwd()}
 Don't navigate, or modify anything outside, this directory.
 
-The files currently tracked by git are:
-{all_files_in_project_at_launch}
 """
+#The files currently tracked by git are:
+#{all_files_in_project_at_launch}
 
 def confirm_proceed():
     while True:
@@ -142,19 +150,7 @@ def update_state_assistant(state):
 
     #print(preprocessed_messages)
 
-    response = client.beta.prompt_caching.messages.create(
-        #model="claude-3-haiku-20240307",
-        model="claude-3-5-sonnet-20240620",
-        max_tokens=1000,
-        system=system_message,
-        tools=tools_anthropic,
-        messages = preprocessed_messages
-    )
-    #For logging
-    #print(response.usage.input_tokens)
-    #print(response.usage.output_tokens)
-    #print(response.usage.cache_creation_input_tokens)
-    #print(response.usage.cache_read_input_tokens)
+    response = state.strong_model.response_cache(system_message, state.messages)
 
     if state.file_for_writing is not None:
         assert 1 == len(response.content)
@@ -162,15 +158,11 @@ def update_state_assistant(state):
 
     for block in response.content:
         if block.type == 'text':
-            if state.file_for_writing is None:
-                # Standard text response.
-                state = state.append_text("assistant", block.text)
-                print_assistant(block.text)
-            else:
-                # Text in file write mode.
-                print_system(f"About to write the following to {state.file_for_writing}")
-                proposed_text = block.text
-
+            #if state.file_for_writing is None:
+            # Standard text response.
+            state = state.append_text("assistant", block.text)
+            print_assistant(block.text)
+            for path, content in parse_file_writes(block.text):
                 abs_path = os.path.join(state.project_dir, state.file_for_writing)
                 if os.path.exists(abs_path):
                     with open(abs_path, 'r') as current_file:
@@ -179,24 +171,38 @@ def update_state_assistant(state):
                 else:
                     print_code(proposed_text)
 
-                user_refused_permission = not confirm_proceed()
-                if user_refused_permission:
-                    result = "User refused permission to write the file"
-                else:
-                    try:
-                        abs_path = os.path.join(state.project_dir, state.file_for_writing)
-                        with open(abs_path, 'w') as file:
-                            file.write(block.text)
-                        state = state.add_file_to_context(state.file_for_writing)
-                        
-                        result = "File written successfully"
-                    except Exception as e:
-                        result= f"An error occured: {e}"
-                    
-                print_system(result)
-                state = state.append_text('user', result)
-                state = state.close_file_for_writing()
-                state = update_state_assistant(state)
+                
+            #else:
+            #    # Text in file write mode.
+            #    print_system(f"About to write the following to {state.file_for_writing}")
+            #    proposed_text = block.text
+
+            #    abs_path = os.path.join(state.project_dir, state.file_for_writing)
+            #    if os.path.exists(abs_path):
+            #        with open(abs_path, 'r') as current_file:
+            #            original_text = current_file.read()
+            #        print(diff(original_text, proposed_text, "original", "proposed"))
+            #    else:
+            #        print_code(proposed_text)
+
+            #    user_refused_permission = not confirm_proceed()
+            #    if user_refused_permission:
+            #        result = "User refused permission to write the file"
+            #    else:
+            #        try:
+            #            abs_path = os.path.join(state.project_dir, state.file_for_writing)
+            #            with open(abs_path, 'w') as file:
+            #                file.write(block.text)
+            #            state = state.add_file_to_context(state.file_for_writing)
+            #            
+            #            result = "File written successfully.  File contents omitted from the context."
+            #        except Exception as e:
+            #            result= f"An error occured: {e}"
+            #        
+            #    print_system(result)
+            #    state = state.append_text('user', result)
+            #    state = state.close_file_for_writing()
+            #    state = update_state_assistant(state)
 
         elif block.type == 'tool_use':
             # Tool call.

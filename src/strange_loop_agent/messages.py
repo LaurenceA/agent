@@ -21,33 +21,12 @@ def append_content_to_messages(messages, role, content, error_if_not_role_altern
         messages.append({"role": role, "content": [content]})
     return messages
 
-def cache_final_two_user_messages(messages):
-    """
-    Mirrors the strategy in https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching#continuing-a-multi-turn-conversation
-
-    Does not modify the argument in-place.
-    """
-
-    messages = [*messages]
-    if 1 <= len(messages):
-        assert messages[-1]["role"] == "user"
-        messages[-1]               = {**messages[-1]}
-        messages[-1]["content"]    = [ *messages[-1]["content"]]
-        messages[-1]["content"][0] = {**messages[-1]["content"][0], "cache_control" : {"type": "ephemeral"}}
-
-    if 3 <= len(messages):
-        messages[-3]               = {**messages[-3]}
-        messages[-3]["content"]    = [ *messages[-3]["content"]]
-        messages[-3]["content"][0] = {**messages[-3]["content"][0], "cache_control" : {"type": "ephemeral"}}
-
-    return messages
-
 
 def add_context_to_messages(state, messages):
     return append_text_to_messages(messages, 'user', state_as_a_string(state))
 
 def preprocess_messages(state):
-    return add_context_to_messages(state, cache_final_two_user_messages(state.messages))
+    return add_context_to_messages(state, state.messages)
 
 def num_context_files(state):
     return len(state.context_files)

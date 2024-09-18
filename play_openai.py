@@ -48,18 +48,12 @@ def write_file(file_name, content):
 
 messages = [
     {"role": "system", "content": "You are a helpful assistant.  You have a write_function tool.  Please use it to write any code files requested by the user."},
-    {"role": "user", "content": "Hi, can you write a hello world file in C?"}
+    {"role": "user", "content": [{"type": "text", "text": "Hi, can you write a hello world file in C?"}]}
 ]
 
 response = openai.chat.completions.create(
     model="gpt-4o",
     messages=messages,
-    tools=tools,
 )
 
-tool_call = response.choices[0].message.tool_calls[0]
-function_name = tool_call.function.arguments
-arguments = json.loads(tool_call.function.arguments)
-
-
-
+print(response)
