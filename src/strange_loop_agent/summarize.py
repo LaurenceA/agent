@@ -12,12 +12,6 @@ class Argument(BaseModel):
     argument_type: str
     description: str
 
-class SectionType(Enum):
-    function = "function"
-    method = "method"
-    _class = "class"
-    script = "script"
-    preamble = "preamble"
 
 class Function(BaseModel):
     type: Literal["function"]
@@ -72,7 +66,7 @@ class _FileSummary(BaseModel):
 
 
 system_message = "You are a helpful assistant."
-instruction = "Take the following code file and summarize it. If there are imports, use preamble_description to describe them.  If there is any scripting (e.g. code that is outside a function/class) using script_desciption.  Feel free to invent your own section types, e.g. if you're given a different type of file like latex or config.  Sections should not overlap.\n\n"
+instruction = "Take the following code file and summarize it. If there are imports, use preamble_description to describe them.  If there is any scripting (e.g. code that is outside a function/class) using script_desciption.  Feel free to invent your own section types, e.g. if you're given a different type of file like markdown, latex or config.  Sections should not overlap.\n\n"
 
 previous_summary_instruction = """
 Here is a summary written for the previous version of the file.  You may need to update the line numbers.  You should just copy descriptions etc. if the summaries if the previous version of the file is still accurate.  If the file has changed so much that the previous summary isn't accurate, then you should change it.
