@@ -3,7 +3,6 @@ import json
 import subprocess
 import readline #Just importing readline enables nicer features for the builtin Python input.
 
-from .formatting import print_assistant, input_user, print_system, print_ua, print_internal_error, print_code
 from .diff import diff
 from .tools import tools_internal
 from .state import initialize_state
@@ -11,17 +10,6 @@ from .summarize import summarize
 from .parse_file_writes import parse_file_writes
 
 from .messages import TextBlock, ToolUseBlock, ToolResultBlock
-
-def confirm_proceed():
-    while True:
-        user_input = input("Proceed, (y/n): ").lower().strip()
-        if user_input == 'y':
-            return True
-        elif user_input == 'n':
-            return False
-        else:
-            print_system("Invalid input. Please enter 'y' or 'n'.")
-            return confirm_proceed()
 
 
 def update_state_assistant(state):
@@ -32,7 +20,7 @@ def update_state_assistant(state):
     #The last message must be a user message.
     state.messages.assert_ready_for_assistant()
 
-    print_ua("\nAssistant:")
+    state = state.print_ua("\nAssistant:")
 
     response = state.assistant_api_call()
 
@@ -41,7 +29,7 @@ def update_state_assistant(state):
             #if state.file_for_writing is None:
             # Standard text response.
             state = state.append_text("assistant", block.text)
-            print_assistant(block.text)
+            state = state.print_assistant(block.text)
 
             #for path, proposed_text in parse_file_writes(block.text):
             #    abs_path = os.path.join(state.project_dir, path)
@@ -55,7 +43,8 @@ def update_state_assistant(state):
             parsed_file_writes = parse_file_writes(block.text)
             if 0 < len(parsed_file_writes):
                 errors = []
-                user_refused_permission = not confirm_proceed()
+                state, user_gave_permission = state.confirm_proceed()
+                user_refused_permission = not user_gave_permission
                 if user_refused_permission:
                     errors.append("User refused permission")
                 else:
@@ -133,8 +122,9 @@ def update_state_assistant(state):
                 print(output_messages)
             else:
                 #Call the report function.  It should print directly, and not return anything.
-                assert tools_internal[function_name]['report_function'](state, **args) is None
-                user_refused_permission = not confirm_proceed()
+                state = state.print_system(tools_internal[function_name]['report_function'](**args))
+                state, user_gave_permission = state.confirm_proceed()
+                user_refused_permission = not user_gave_permission
 
                 if user_refused_permission:
                     result = "User refused the use of the tool."
@@ -143,7 +133,7 @@ def update_state_assistant(state):
 
                     #Running the function shouldn't change messages.
                     prev_messages = state.messages
-                    state, result = function(state, **args)
+                    result = function(**args)
                     assert state.messages is prev_messages
 
             tool_result_block = ToolResultBlock(block.id, result)
@@ -151,7 +141,7 @@ def update_state_assistant(state):
             #Tool result has role user.
             state = state.append_block("user", tool_result_block)
 
-            print_system(result)
+            state = state.print_system(result)
  
             #If the user refused to use the tool, pass back immediately to user to provide more context.
             #Otherwise, recursively call LLM
@@ -159,7 +149,7 @@ def update_state_assistant(state):
                 state = update_state_assistant(state)
             
         else:
-            print_internal_error(block)
+            state = state.print_internal_error(block)
 
     return state
 
@@ -176,8 +166,8 @@ def update_state_user(state, user_input):
 state = initialize_state()
 
 while True:
-    print_ua('\nUser:')
-    user_input = input_user().strip()
+    state = state.print_ua('\nUser:')
+    state, user_input = state.input_user()
     if user_input == "exit":
         break
     else:

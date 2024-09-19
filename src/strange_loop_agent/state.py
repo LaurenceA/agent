@@ -5,13 +5,14 @@ import shutil
 
 from dataclasses import dataclass, replace
 from typing import Optional
-from pyrsistent import PVector, PMap, PSet, pvector, pmap, pset
 
 from .models import Model, openai_client, anthropic_client
 from .tools import tools_internal
 from .parse_file_writes import file_open_delimiter, file_close_delimiter, parse_file_writes
+from .utils import hash_file
 
 from .messages import Messages
+from .formatting import color
 
 default_config = {
     'max_tokens' : 4096,
@@ -62,12 +63,13 @@ Don't navigate, or modify anything outside, this directory.
 class State:
     system_message: str
     project_dir: str                # Must be imported as part of the first call to main if this is to work.
-    tracked_files: PMap             # Dict mapping tracked file names to current hashes.
+    tracked_files: dict             # Dict mapping tracked file names to current hashes.
     max_tokens: int                 # Max tokens for any completion
     hash_dir: str                   # Directory with ...
     weak_model: Model               # Weak model
     strong_model: Model             # Strong model
-    messages: PVector               # All the persistent messages.
+    messages: Messages
+    console_log: list
 
     def track_file(self, path):
         return replace(state, tracked_files=self.tracked_files.add(path))
@@ -85,7 +87,7 @@ class State:
 
     def append_state_to_messages(self):
         self.messages.assert_ready_for_user_input()
-        tracked_file_string = '\n'.join(self.tracked_files)
+        tracked_file_string = '\n'.join([*self.tracked_files.keys()])
 
         result = f"Tracked files:\n{tracked_file_string}"
 
@@ -107,28 +109,107 @@ class State:
         self.messages.assert_ready_for_assistant()
         return self.strong_model.response(self.system_message, self.append_state_to_messages(), tools=tools_internal)
 
+    def track_file_write(self, paths):
+        """
+        Should be called after you write one or more files.
+        """
+        assert isinstance(paths, list)
+        list_tracked_files = set(self.tracked_files.keys()).intersection(paths)
+        tracked_files = update_hashes(self.hash_dir, tracked_file_list)
+        return replace(self, tracked_files=tracked_files)
+
+    def update_hashes(self):
+        """
+        Should be called just before the assistant, so that you can restore the state to just before the assistant messed stuff up.
+        If the user messes stuff up, that's on them...
+        """
+        tracked_files = update_hashes(self.hash_dir, list(self.tracked_files.keys()))
+
+    def print(self, string):
+        print(string)
+        return replace(self, console_log=[*self.console_log, string])
+
+    def print_user(self):
+        return self.print(color.BOLD+"User:"+color.RESET)
+
+    def print_assistant(self):
+        return self.print(color.BOLD+"assistant:"+color.RESET)
+
+    def print_system(self, string):
+        return self.print(color.GREEN+string+color.RESET)
+
+    def print_assistant(self, string):
+        return self.print(color.BLUE+string+color.RESET)
+
+    def print_code(self, string):
+        return self.print(color.DARKGREY+string+color.RESET)
+
+    def print_ua(self, string):
+        return self.print(color.BOLD+string+color.RESET)
+
+    def print_internal_error(self, string):
+        return self.print(color.RED+string+color.RESET)
+
+    def input_user(self):
+        return self.input(color.PURPLE, color.RESET)
+
+    def input(self, start, end):
+        user_string = input(start).strip()
+        print(end, end='')
+        full_string = start+user_string+end
+
+        return replace(self, console_log=[*self.console_log, full_string]), user_string
+
+    def confirm_proceed(self):
+        while True:
+            self, user_input = self.input("Proceed, (y/n): ", "")
+            if user_input == 'y':
+                return self, True
+            elif user_input == 'n':
+                return self, False
+            else:
+                self = self.print_system("Invalid input. Please enter 'y' or 'n'.")
+                return self.confirm_proceed()
+
+
+
+def update_hashes(hash_dir, tracked_file_list):
+    """
+    Updates the hashed files.  
+    """
+    tracked_files = {}
+    for file_path in tracked_file_list:
+        _hash = hash_file(file_path)
+        hash_path = os.path.join(hash_dir, _hash)
+        
+        if not os.path.exists(hash_path):
+            shutil.copy(file_path, hash_path)
+        tracked_files[file_path] = _hash
+    return tracked_files
+
 def initialize_state():
     #Set up tracked files
     git_ls_files = subprocess.run('git ls-files', shell=True, capture_output=True, text=True)
     if git_ls_files.returncode == 0:
         #Use git's tracked files if git exists, and we are in a pre-existing repo.
-        tracked_files = git_ls_files.stdout.strip().split('\n')
+        tracked_file_list = git_ls_files.stdout.strip().split('\n')
     else:
         #Use git's tracked files if git exists, and we are in a pre-existing repo.
         raise NotImplementedError()
 
-    #Set up directory for hashed files:
-    #  Delete previous directory
-    hash_dir = config["hash_dir"]
-    #if os.path.exists(hash_dir):
-    #    shutil.rmtree(hash_dir)
-    ##  Make new directory
-    #os.makedirs(hash_dir, exist_ok=False)
-    ##  Fill with all files.
-    #
-    #for file in tracked_file_list
-    #    _hash = 
-    #    shutil
+    #### Set up hash files
+    hash_dir = config['hash_dir']
+    #Make a hash directory if it doesn't exist
+    if not os.path.exists(hash_dir):
+        os.makedirs(hash_dir, exist_ok=False)
+
+    #Hash all tracked files if they don't already exist.
+    tracked_files = update_hashes(hash_dir, tracked_file_list)
+
+    #Remove all hashed files that aren't referenced
+    for _hash in os.listdir(hash_dir):
+        if _hash not in tracked_files:
+            os.remove(os.path.join(hash_dir, _hash))
 
     return State(
         system_message = system_message,
@@ -140,4 +221,5 @@ def initialize_state():
         #strong_model = Model(anthropic_client, 'claude-3-5-sonnet-20240620')
         strong_model = Model(anthropic_client, 'claude-3-haiku-20240307'),
         messages = Messages([]),
+        console_log = [],
     )

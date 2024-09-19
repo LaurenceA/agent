@@ -1,15 +1,12 @@
 import os
 import subprocess
 
-from .formatting import print_system, print_code
-from .context import context_tools_internal
-
 tools_internal = {}
 
-def report_run_command_in_shell(state, command):
-    print_system(f"About to run command in shell: {command}")
+def report_run_command_in_shell(command):
+    return f"About to run command in shell: {command}"
 
-def run_command_in_shell(state, command):
+def run_command_in_shell(command):
     result = subprocess.run(command, shell=True, capture_output=True, text=True)
 
     stdout = result.stdout.strip()
@@ -20,7 +17,7 @@ def run_command_in_shell(state, command):
     if stderr:
         output = output + 'stderr:\n' + stderr
 
-    return state, output
+    return output
 
 tools_internal["run_command_in_shell"] = {
     "function" : run_command_in_shell,
