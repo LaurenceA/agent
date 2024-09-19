@@ -10,63 +10,35 @@ model = Model(openai_client, 'gpt-4o-mini')
 class Argument(BaseModel):
     argument_name: str
     argument_type: str
-    description: str
 
+class Field(BaseModel):
+    field_name: str
+    field_type: str
 
 class Function(BaseModel):
     type: Literal["function"]
     name: str
     start_line: int
     end_line: int
-    description: str
 
     return_type: str
     arguments: list[Argument]
-
-class Preamble(BaseModel):
-    type: Literal["preamble"]
-    name: str
-    start_line: int
-    end_line: int
-    description: str
-
-class Script(BaseModel):
-    type: Literal["script"]
-    name: str
-    start_line: int
-    end_line: int
-    description: str
-
-class TypeDeclaration(BaseModel):
-    type: Literal["type_declaration"]
-    name: str
-    start_line: int
-    end_line: int
-    description: str
 
 class Class(BaseModel):
     type: Literal["class"]
     name: str
     start_line: int
     end_line: int
-    description: str
 
     methods:list[Function]
-
-class Other(BaseModel):
-    type: str
-    name: str
-    start_line: int
-    end_line: int
-    description: str
+    fields:list[Field]
 
 class _FileSummary(BaseModel):
     summary: str
-    sections: list[Union[Class, Function, Script, Preamble, TypeDeclaration, Other]]
-
+    sections: list[Union[Class, Function]]
 
 system_message = "You are a helpful assistant."
-instruction = "Take the following code file and summarize it. If there are imports, use preamble_description to describe them.  If there is any scripting (e.g. code that is outside a function/class) using script_desciption.  Feel free to invent your own section types, e.g. if you're given a different type of file like markdown, latex or config.  Sections should not overlap.\n\n"
+instruction = "Take the following code file and summarize it. Be specific about argument_type and field_type where possible, e.g. list[int] rather than list. But if you don't know the argument_type or field_type, then say 'unknown'. Don't say anything about implicitly defined variables/classes/functions.\n\n"
 
 previous_summary_instruction = """
 Here is a summary written for the previous version of the file.  You may need to update the line numbers.  You should just copy descriptions etc. if the summaries if the previous version of the file is still accurate.  If the file has changed so much that the previous summary isn't accurate, then you should change it.
