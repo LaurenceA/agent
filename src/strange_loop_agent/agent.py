@@ -20,7 +20,7 @@ def update_state_assistant(state):
     #The last message must be a user message.
     state.messages.assert_ready_for_assistant()
 
-    state = state.print_ua("\nAssistant:")
+    state = state.print_Assistant()
 
     response = state.assistant_api_call()
 
@@ -164,12 +164,17 @@ def update_state_user(state, user_input):
     return state.append_text("user", user_input)
 
 state = initialize_state()
+states = []
 
 while True:
-    state = state.print_ua('\nUser:')
+    state = state.print_User()
     state, user_input = state.input_user()
     if user_input == "exit":
         break
+    if user_input == "undo":
+        break
     else:
+        #Save the state just before you use the assistant.
+        states.append(state)
         state = update_state_user(state, user_input)
         state = update_state_assistant(state)

@@ -49,18 +49,16 @@ pip install -e .
 
 This will install the package in editable mode, allowing you to make changes to the source code and immediately see the effects.
 
+## Next steps:
+* Implement undo.
+* Check file writing (in particular, you can't write untracked files that already exist).
+
+## Features:
+* Rewinding / undo, supported by functional architecture, plus git-like file store.
+  - Does mean that you can't write to previously untracked files.
+
 ## TODOs:
 
-* Pyrsistent datastructures.
-* Git-like architecture:
-  - Keep all verions of all files in .claude folder, with filename = hash.
-  - For each tracked file, remember hash.
-  - Supports rewinding full agent + repo state.
-  - Supports tracking user changes to files, without needing to keep full repo in memory.
-* Rewinding:
-  - Need to be careful when you write to an untracked file that already exists.
-  - Need to emit two states: one where you track the file (remembering old version).  And another where you do the update and track the new file.
-  - State needs to contain a log of everything printed so far.
 * Summaries:
   - Generated in one shot for a full file.
   - But represented as line numbers, title, description.

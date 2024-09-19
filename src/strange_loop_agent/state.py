@@ -129,11 +129,11 @@ class State:
         print(string)
         return replace(self, console_log=[*self.console_log, string])
 
-    def print_user(self):
-        return self.print(color.BOLD+"User:"+color.RESET)
+    def print_User(self):
+        return self.print(color.BOLD+"\nUser:"+color.RESET)
 
-    def print_assistant(self):
-        return self.print(color.BOLD+"assistant:"+color.RESET)
+    def print_Assistant(self):
+        return self.print(color.BOLD+"\nAssistant:"+color.RESET)
 
     def print_system(self, string):
         return self.print(color.GREEN+string+color.RESET)
@@ -143,9 +143,6 @@ class State:
 
     def print_code(self, string):
         return self.print(color.DARKGREY+string+color.RESET)
-
-    def print_ua(self, string):
-        return self.print(color.BOLD+string+color.RESET)
 
     def print_internal_error(self, string):
         return self.print(color.RED+string+color.RESET)

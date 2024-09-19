@@ -31,10 +31,11 @@ class OpenAIClient(Client):
             "role" : "system",
             "content" : system_message
         }
-        messages = [system_message, *messages]
-        response = _openai_client.chat.completions.create(
+        messages = [system_message, *messages.dump()]
+ 
+        response = _openai_client.beta.chat.completions.parse(#) chat.completions.create(
             model=model,
-            messages=messages.dump(),
+            messages=messages,
             **kwargs,
         )
         return response
