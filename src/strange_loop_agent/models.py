@@ -1,8 +1,6 @@
 import openai
 import anthropic
 
-from .utils import is_messages
-
 _openai_client = openai.OpenAI()
 _anthropic_client = anthropic.Anthropic()
 
@@ -36,7 +34,7 @@ class OpenAIClient(Client):
         messages = [system_message, *messages]
         response = _openai_client.chat.completions.create(
             model=model,
-            messages=messages,
+            messages=messages.dump(),
             **kwargs,
         )
         return response
@@ -57,24 +55,20 @@ class AnthropicClient(Client):
         return result
 
     def response(self, model, system_message, messages, cache, **kwargs):
-        is_messages(messages)
-
         if 'tools' in kwargs:
             kwargs['tools'] = self.tools(kwargs['tools'])
+ 
+        dumped_messages = messages.dump()
 
         if cache:
-            #Uses caching.  So it starts by appending cache_control to the previous user messages.
-            messages = [*messages]
-            if 1 <= len(messages):
-                assert messages[-1]["role"] == "user"
-                messages[-1]               = {**messages[-1]}
-                messages[-1]["content"]    = [ *messages[-1]["content"]]
-                messages[-1]["content"][0] = {**messages[-1]["content"][0], "cache_control" : {"type": "ephemeral"}}
+            if 1 <= len(dumped_messages):
+                assert dumped_messages[-1]['role'] == 'user'
+                dumped_messages[-1]['content'][0]['cache_control'] = {"type": "ephemeral"}
 
-            if 3 <= len(messages):
-                messages[-3]               = {**messages[-3]}
-                messages[-3]["content"]    = [ *messages[-3]["content"]]
-                messages[-3]["content"][0] = {**messages[-3]["content"][0], "cache_control" : {"type": "ephemeral"}}
+            if 3 <= len(dumped_messages):
+                assert dumped_messages[-3]['role'] == 'user'
+                dumped_messages[-3]['content'][0]['cache_control'] = {"type": "ephemeral"}
+        print(dumped_messages)
 
         funcs = {
             True: _anthropic_client.beta.prompt_caching.messages.create,
@@ -84,7 +78,7 @@ class AnthropicClient(Client):
         response = funcs[cache](
             model=model,
             system=system_message,
-            messages = messages,
+            messages = messages.dump(),
             max_tokens = 4096,
             **kwargs,
         )

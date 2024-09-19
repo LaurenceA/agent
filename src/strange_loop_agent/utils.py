@@ -1,100 +1,96 @@
-from pyrsistent import PVector, PMap, PSet, pvector, pmap, pset
+from collections.abc import Iterable
 
-def is_pvector(x):
-    assert isinstance(x, PVector)
-    all_persistent(x)
+class Block():
+    pass
 
-def is_pmap(x):
-    assert isinstance(x, PMap)
-    all_persistent(x)
+class TextBlock(Block):
+    def __init__(self, text):
+        isinstance(text, str)
 
-def Messages(*ms):
-    result = pvector(ms)
-    is_messages(result)
-    return result
- 
-def Message(role, content):
-    result = pmap({'role': role, 'content': content})
-    is_message(result)
-    return result
+        self.text = text
 
-def Content(*blocks):
-    result = pvector(blocks)
-    is_content(result)
-    return result
+    def dump(self):
+        return {'type': 'text', 'text': self.text}
 
-def Block(typ, kwargs):
-    result = pmap({'type': typ, **kwargs})
-    is_block(result)
-    return result
-
-def TextBlock(text):
-    result = Block('text', {'text':text})
-    is_text_block(result)
-    return result
+class ToolUseBlock(Block):
+    def __init__(self, _id, name, _input):
+        isinstance(_id, str)
+        isinstance(name, str)
+        isinstance(_input, dict)
+        self.id = _id
+        self.name = name
+        self.input = _input
     
-def ToolResultBlock(tool_use_id, content):
-    result = Block('tool_result', {'tool_use_id':tool_use_id, 'content':content})
-    is_tool_result_block(result)
-    return result
+    def dump(self):
+        return {'type': 'tool_use', 'id': self.id, 'name': self.name, 'input': self.input}
 
-def ToolUseBlock(_id, name, _input):
-    result = Block('tool_use', {'id': _id, 'name': name, 'input': _input})
-    is_tool_use_block(result)
-    return result
+class ToolResultBlock(Block):
+    """
+    Tool results turn up in user blocks, so also cacheable.
+    """
+    def __init__(self, tool_use_id, content):
+        isinstance(tool_use_id, str)
+        isinstance(content, str)
 
-def is_messages(messages):
-    assert isinstance(messages, PVector)
-    for m in messages:
-        is_message(m)
+        self.tool_use_id = tool_use_id
+        self.content = content
+    
+    def dump(self):
+        return {'type': 'tool_result', 'tool_use_id': self.tool_use_id, 'content': self.content}
 
-def is_message(message):
-    assert isinstance(message, PMap)
-    assert message.keys() == pset(['role', 'content'])
-    assert isinstance(message["role"], str)
-    is_content(message["content"])
+class Message():
+    def __init__(self, role, blocks):
+        assert role in ['user', 'assistant']
+        self.role = role
 
-def is_content(content):
-    assert isinstance(content, PVector)
-    for block in content:
-        is_block(block)
+        assert isinstance(blocks, Iterable)
+        self.blocks = tuple(blocks)
+        for block in self.blocks:
+            assert isinstance(block, Block)
 
-def is_block(block):
-    assert isinstance(block, PMap)
+    def append_block(self, role, block):
+        assert self.role == role
+        return Message(role, [*self.blocks, block])
 
-def is_text_block(block):
-    is_block(block)
-    assert block.keys() == pset(['type', 'text'])
-    assert block['type'] == 'text'
-    assert isinstance(block['type'], str)
-    assert isinstance(block['text'], str)
+    def dump(self):
+        content = [block.dump() for block in self.blocks]
+        return {'role': self.role, 'content': content}
 
-def is_tool_result_block(block):
-    is_block(block)
-    assert block.keys() == pset(['type', 'tool_use_id', 'content'])
-    assert block['type'] == 'tool_result'
-    assert isinstance(block['tool_use_id'], str)
-    assert isinstance(block['content'], str)
 
-def is_tool_use_block(block):
-    is_block(block)
-    assert block.keys() == pset(['type', 'id', 'name', 'input'])
-    assert block['type'] == 'tool_use'
-    assert isinstance(block['id'], str)
-    assert isinstance(block['name'], str)
-    assert isinstance(block['input'], dict)
-     
+class Messages():
+    def __init__(self, messages):
+        assert isinstance(messages, Iterable)
+        self.messages = tuple(messages)
+        for m in self.messages:
+            assert isinstance(m, Message)
 
-def all_persistent(xs):
-    if isinstance(xs, (int, str)):
-        pass
-    elif isinstance(xs, (PVector, tuple, PSet)):
-        for x in xs:
-            all_persistent(x)
-    elif isinstance(xs, PMap):
-        for k, v in xs.items():
-            all_persistent(k)
-            all_persistent(v)
-    else:
-        raise Exception(f"{type(xs)} is not persistent")
-        
+    def dump(self):
+        return [m.dump() for m in self.messages]
+
+    def append_message(self, message):
+        assert isinstance(message, Message)
+        if 0 < len(self.messages):
+            assert message.role != self.messages[-1].role
+        return Messages([*self.messages, message])
+
+    def append_block(self, role, block):
+        assert isinstance(role, str)
+        assert isinstance(block, Block)
+
+        if 0 < len(self.messages) and role == self.messages[-1].role:
+            #Same role as previous, so append block to previous message.
+            updated_message = self.messages[-1].append_block(role, block)
+            return Messages([*self.messages[:-1], updated_message])
+        else:
+            #Same role as previous, so make new message
+            return self.append_message(Message(role, [block]))
+
+    def append_text(self, role, text):
+        return self.append_block(role, TextBlock(text))
+
+    def assert_ready_for_user_input(self):
+        return 0 == len(self.messages) or self.messages[-1].role == "assistant"
+
+    def assert_ready_for_assistant(self):
+        return 0 != len(self.messages) and self.messages[-1].role == "user"
+

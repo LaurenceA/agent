@@ -1,17 +1,17 @@
 import os
 import json
 import subprocess
+import shutil
 
 from dataclasses import dataclass, replace
 from typing import Optional
 from pyrsistent import PVector, PMap, PSet, pvector, pmap, pset
 
 from .models import Model, openai_client, anthropic_client
-from .messages import append_text_to_messages, append_block_to_messages
 from .tools import tools_internal
 from .parse_file_writes import file_open_delimiter, file_close_delimiter, parse_file_writes
 
-from .utils import is_messages
+from .utils import Messages
 
 default_config = {
     'max_tokens' : 4096,
@@ -72,31 +72,19 @@ class State:
     def track_file(self, path):
         return replace(state, tracked_files=self.tracked_files.add(path))
 
-    def append_text(self, role, text, error_if_not_role_alternate=False):
-        messages = append_text_to_messages(
-            self.messages, 
-            role, 
-            text, 
-            error_if_not_role_alternate=error_if_not_role_alternate
-        )
-
-        is_messages(messages)
+    def append_text(self, role, text):
+        messages = self.messages.append_text(role, text)
         return replace(self, messages=messages)
 
-    def append_block(self, role, block, error_if_not_role_alternate=False):
-        messages = append_block_to_messages(
-            self.messages, 
-            role, 
-            block, 
-            error_if_not_role_alternate=error_if_not_role_alternate
-        )
+    def append_block(self, role, block):
+        messages = self.messages.append_block(role, block)
         return replace(self, messages=messages)
 
     def abs_path(self, rel_path):
         return os.path.join(self.project_dir, rel_path)
 
     def append_state_to_messages(self):
-        assert 0==len(self.messages) or self.messages[-1]["role"] == "user"
+        self.messages.assert_ready_for_user_input()
         tracked_file_string = '\n'.join(self.tracked_files)
 
         result = f"Tracked files:\n{tracked_file_string}"
@@ -113,16 +101,19 @@ class State:
         #result = '\n\n\n\n'.join(result)
         #if state.file_for_writing is not None:
         #    result = result + f'You have {state.file_for_writing} open.  Anything you say will go straight to this file.  So only say code!  You must say the full code file.  You cannot e.g. say that the rest of the code is the same.'
-        messages = append_text_to_messages(self.messages, 'user', result)
-        is_messages(messages)
-        print(messages)
-        return messages
+        return self.messages.append_text('user', result)
 
     def assistant_api_call(self):
-        assert self.messages[-1]["role"] == "user"
+        self.messages.assert_ready_for_assistant()
         return self.strong_model.response(self.system_message, self.append_state_to_messages(), tools=tools_internal)
 
 def initialize_state():
+    #Set up directory for hashed files, deleting any previous directory.
+    hash_dir = config["hash_dir"]
+    if os.path.exists(hash_dir):
+        shutil.rmtree(hash_dir)
+    os.makedirs(hash_dir, exist_ok=False)
+    
     #Set up tracked files
     git_ls_files = subprocess.run('git ls-files', shell=True, capture_output=True, text=True)
     if git_ls_files.returncode == 0:
@@ -136,10 +127,10 @@ def initialize_state():
         system_message = system_message,
         project_dir = os.getcwd(),
         max_tokens = config["max_tokens"],
-        hash_dir = config["hash_dir"],
+        hash_dir = hash_dir,
         tracked_files = tracked_files,
         weak_model = Model(openai_client, 'gpt-4o-mini'),
         #strong_model = Model(anthropic_client, 'claude-3-5-sonnet-20240620')
         strong_model = Model(anthropic_client, 'claude-3-haiku-20240307'),
-        messages = pvector(),
+        messages = Messages([]),
     )

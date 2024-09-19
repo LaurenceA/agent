@@ -30,7 +30,7 @@ def update_state_assistant(state):
     """ 
     
     #The last message must be a user message.
-    assert state.messages[-1]["role"] == "user"
+    state.messages.assert_ready_for_assistant()
 
     print_ua("\nAssistant:")
 
