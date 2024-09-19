@@ -8,7 +8,7 @@ setup(
     install_requires=[
         "openai",
         "anthropic",
-        "colorama"
+        "pyrsistent"
     ],
     entry_points={
         "console_scripts": [

@@ -1,6 +1,8 @@
 import openai
 import anthropic
 
+from .utils import is_messages
+
 _openai_client = openai.OpenAI()
 _anthropic_client = anthropic.Anthropic()
 
@@ -55,6 +57,8 @@ class AnthropicClient(Client):
         return result
 
     def response(self, model, system_message, messages, cache, **kwargs):
+        is_messages(messages)
+
         if 'tools' in kwargs:
             kwargs['tools'] = self.tools(kwargs['tools'])
 

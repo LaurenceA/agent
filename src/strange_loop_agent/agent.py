@@ -6,39 +6,11 @@ import readline #Just importing readline enables nicer features for the builtin 
 from .formatting import print_assistant, input_user, print_system, print_ua, print_internal_error, print_code
 from .diff import diff
 from .tools import tools_internal
-from .parse_file_writes import file_open_delimiter, file_close_delimiter, parse_file_writes
 from .state import initialize_state
 from .summarize import summarize
+from .parse_file_writes import parse_file_writes
 
-def call_terminal(command):
-    stdout = subprocess.run(command, shell=True, capture_output=True, text=True).stdout
-    assert 0 < len(stdout)
-    return stdout.strip()
-
-system_message = f"""You are a part of an agentic system for programming.
-
-Try to be brief when responding to user requests.  Tokens are expensive!
-
-Don't ask for permission.  Just call the tools.  The agent wrapper handles asking the user for permission.
-
-Try to minimize the number of files you have in the context.  Discard any files from the context you don't need.
-
-When you want to write to a file, use the following format:
-{file_open_delimiter}path/to/file
-<file contents>{file_close_delimiter}
-These files are automatically written successfully.
-
-A brief description of the system you are running on:
-OS name: {call_terminal('uname -s')}
-OS version: {call_terminal('uname -r')}
-Architecture: {call_terminal('uname -m')}
-System name: {call_terminal('uname -n')}
-
-The project root directory is:
-{os.getcwd()}
-Don't navigate, or modify anything outside, this directory.
-
-"""
+from .utils import TextBlock, ToolUseBlock, ToolResultBlock
 
 def confirm_proceed():
     while True:
@@ -56,14 +28,13 @@ def update_state_assistant(state):
     """
     Takes user input, and does the things ...
     """ 
-    print(state)
     
     #The last message must be a user message.
     assert state.messages[-1]["role"] == "user"
 
     print_ua("\nAssistant:")
 
-    response = state.assistant_api_call(system_message)
+    response = state.assistant_api_call()
 
     for block in response.content:
         if block.type == 'text':
@@ -145,15 +116,10 @@ def update_state_assistant(state):
                     abbreviated_args[argname] = "..."
 
             #Append tool call itself to messages.
-            tool_call = {
-                "type": "tool_use",
-                "id": block.id,
-                "name": function_name,
-                "input": abbreviated_args,
-            }
+            tool_use_block = ToolUseBlock(block.id, function_name, abbreviated_args)
 
             #The tool call has an assistant role.
-            state = state.append_content("assistant", tool_call)
+            state = state.append_block("assistant", tool_use_block)
 
             #Append the tool call result to messages, with a user role
             #If the user refuses to run the tool call, then have "User refused the use of the tool" as the result.
@@ -180,14 +146,10 @@ def update_state_assistant(state):
                     state, result = function(state, **args)
                     assert state.messages is prev_messages
 
-            tool_use_result_content = {
-                "type": "tool_result",
-                "tool_use_id": block.id,
-                "content" : result,
-            }
+            tool_result_block = ToolResultBlock(block.id, result)
                 
             #Tool result has role user.
-            state = state.append_content("user", tool_use_result_content)
+            state = state.append_block("user", tool_result_block)
 
             print_system(result)
  

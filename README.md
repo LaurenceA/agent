@@ -51,6 +51,27 @@ This will install the package in editable mode, allowing you to make changes to 
 
 ## TODOs:
 
+* Pyrsistent datastructures.
+* Git-like architecture:
+  - Keep all verions of all files in .claude folder, with filename = hash.
+  - For each tracked file, remember hash.
+  - Supports rewinding full agent + repo state.
+  - Supports tracking user changes to files, without needing to keep full repo in memory.
+* Rewinding:
+  - Need to be careful when you write to an untracked file that already exists.
+  - Need to emit two states: one where you track the file (remembering old version).  And another where you do the update and track the new file.
+  - State needs to contain a log of everything printed so far.
+* Summaries:
+  - Generated in one shot for a full file.
+  - But represented as line numbers, title, description.
+  - Key idea is to incrementally update summaries.
+  - When a file is overwritten (either by user or by agent), need to regenerate summary.
+  - Ask LLM to keep summary same as previous summary where it is still relevant.
+  - So that caching works well, summaries are dumped into context at start.  Updated summaries are placed into context as necessary.
+  - Line numbers are expected to change rapidly, so: 
+    - Line numbers aren't included in summaries.
+    - LLM identifies sections (e.g. for writing) by title, not line number.
+
 * Print diffs for file writes.
 * Keep line numbers out of summary.  Store them separately, so that you can update them easily.
 * Reductions in context + context tool use:
