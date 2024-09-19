@@ -11,7 +11,7 @@ from .models import Model, openai_client, anthropic_client
 from .tools import tools_internal
 from .parse_file_writes import file_open_delimiter, file_close_delimiter, parse_file_writes
 
-from .utils import Messages
+from .messages import Messages
 
 default_config = {
     'max_tokens' : 4096,
@@ -108,20 +108,27 @@ class State:
         return self.strong_model.response(self.system_message, self.append_state_to_messages(), tools=tools_internal)
 
 def initialize_state():
-    #Set up directory for hashed files, deleting any previous directory.
-    hash_dir = config["hash_dir"]
-    if os.path.exists(hash_dir):
-        shutil.rmtree(hash_dir)
-    os.makedirs(hash_dir, exist_ok=False)
-    
     #Set up tracked files
     git_ls_files = subprocess.run('git ls-files', shell=True, capture_output=True, text=True)
     if git_ls_files.returncode == 0:
         #Use git's tracked files if git exists, and we are in a pre-existing repo.
-        tracked_files = pvector(git_ls_files.stdout.strip().split('\n'))
+        tracked_files = git_ls_files.stdout.strip().split('\n')
     else:
         #Use git's tracked files if git exists, and we are in a pre-existing repo.
         raise NotImplementedError()
+
+    #Set up directory for hashed files:
+    #  Delete previous directory
+    hash_dir = config["hash_dir"]
+    #if os.path.exists(hash_dir):
+    #    shutil.rmtree(hash_dir)
+    ##  Make new directory
+    #os.makedirs(hash_dir, exist_ok=False)
+    ##  Fill with all files.
+    #
+    #for file in tracked_file_list
+    #    _hash = 
+    #    shutil
 
     return State(
         system_message = system_message,

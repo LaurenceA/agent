@@ -10,7 +10,7 @@ from .state import initialize_state
 from .summarize import summarize
 from .parse_file_writes import parse_file_writes
 
-from .utils import TextBlock, ToolUseBlock, ToolResultBlock
+from .messages import TextBlock, ToolUseBlock, ToolResultBlock
 
 def confirm_proceed():
     while True:
