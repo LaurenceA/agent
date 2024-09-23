@@ -7,38 +7,52 @@ from models import Model, openai_client, anthropic_client
 from messages import Messages
 model = Model(openai_client, 'gpt-4o-mini')
 
-class Argument(BaseModel):
-    argument_name: str
-    argument_type: str
-
-class Field(BaseModel):
-    field_name: str
-    field_type: str
-
 class Function(BaseModel):
     type: Literal["function"]
     name: str
-    start_line: int
-    end_line: int
-
-    return_type: str
-    arguments: list[Argument]
+    start_line_number: int
+    end_line_number: int
+    first_line_text: str
+    summary: str
+    docstring: Optional[str]
+    subsections: list['Function']
 
 class Class(BaseModel):
     type: Literal["class"]
     name: str
-    start_line: int
-    end_line: int
+    start_line_number: int
+    end_line_number: int
+    first_line_text: str
+    summary: str
+    docstring: Optional[str]
 
     methods:list[Function]
-    fields:list[Field]
+    fields:list[str]
+
+class OtherSection(BaseModel):
+    type: Literal["other_section"]
+    name: str
+    start_line_number: int
+    end_line_number: int
+    summary: str
+
+    subsections: list['Section']
+
+Section = Union[Class, Function, OtherSection]
 
 class _FileSummary(BaseModel):
     summary: str
-    sections: list[Union[Class, Function]]
+    sections: list[Section]
 
 system_message = "You are a helpful assistant."
-instruction = "Take the following code file and summarize it. Be specific about argument_type and field_type where possible, e.g. list[int] rather than list. But if you don't know the argument_type or field_type, then say 'unknown'. Don't say anything about implicitly defined variables/classes/functions.\n\n"
+instruction = """Summarize the following file. Don't say anything about implicitly defined variables/classes/functions. Use docstring for any comments at the start of a function/method/class definition that is used like a docstring (e.g. describes the code). Use type=other_section for:
+* files that aren't code (e.g., text, latex, markdown).
+* to split up very long code files into logical sections.
+* to split up very long functions/methods into logical sections.
+* for code that isn't part of a function/class definition.  e.g. in a shell script, or the imports.
+The code is:
+
+"""
 
 previous_summary_instruction = """
 Here is a summary written for the previous version of the file.  You may need to update the line numbers.  You should just copy descriptions etc. if the summaries if the previous version of the file is still accurate.  If the file has changed so much that the previous summary isn't accurate, then you should change it.

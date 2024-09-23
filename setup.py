@@ -8,7 +8,9 @@ setup(
     install_requires=[
         "openai",
         "anthropic",
-        "pyrsistent"
+        "pathspec",
+        "tree-sitter==0.21.3",
+        "tree-sitter-languages==1.10.2"
     ],
     entry_points={
         "console_scripts": [

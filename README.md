@@ -58,6 +58,43 @@ This will install the package in editable mode, allowing you to make changes to 
   - Does mean that you can't write to previously untracked files.
 
 ## TODOs:
+* Tracked file names are always available to the Agent (all of them are dumped in initially, and added as new files are written).
+* Files / sections are referred to as e.g. path/to/file:section_name:subsection_name, where e.g. section_name could be the name of a class and subsection_name could be the name of a subsection.
+* For every LLM call, we 
+* When we open a file
+
+
+
+* Folder summary (can be run when starting in a project, or when ...)
+if README present:
+    paste/summarise
+
+dir_summary(path, threshold_mult):
+    for file/dir in folder:
+        paste file/dir summary
+
+file_summary(path, threshold_mult):
+    if size of code below low threshold:
+        paste all code.
+    elif size of code below higher threshold:
+        paste GPT-4o summary of file.
+    elif size of code below higher threshold:
+        paste tree-sitter summary of file
+    else:
+        paste file name
+
+* Updates to persistent summaries:
+  - Agent diffs are in the code anyway.
+  - If user updates file, then redo file summary for that file, and past diff into context.
+
+* Summary primitives:
+  - Summarise file with GPT-4o mini.
+  - Tree sitter to extract function/class definitions in file.
+  - 
+
+* Tasks:
+  - Contextual summary (so the agent knows what to edit).
+  - Agents selects a bunch of functions to edit.
 
 * Summaries:
   - Generated in one shot for a full file.
