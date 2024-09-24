@@ -149,12 +149,16 @@ def binary_none(f):
 max_none = binary_none(max)
 add_none = binary_none(operator.add)
 
+def signature(path):
+    if 0 == len(path.parts):
+        return ""
+    else:
+        parts = '#'.join(path.parts)
+        return f'#{parts}: {path.signature()}'
+    
+
 def summary(path, flow_down_tokens, prev_summary, sources):
     assert isinstance(path, FullPath)
-
-    if prev_summary is not None:
-        assert prev_summary.path == path
-        flow_down_tokens = max_none(flow_down_tokens, prev_summary.flow_down_tokens)
 
     total_tokens = flow_down_tokens
     for source_path, source_tokens in sources.items():
@@ -173,17 +177,13 @@ def summary(path, flow_down_tokens, prev_summary, sources):
     if (flow_down_tokens is not None) and (flow_down_tokens < (pathsize_tokens / 16)):
         flow_down_tokens = None
 
-    if total_tokens is None:
-        #Produces a leaf node if there are no sources, and no flow_down_tokens.
-        if path.is_dir():
-            return DirSummaryLeaf(path, "")
-        else:
-            return CodeSummaryLeaf(path, path.signature())
+    code_literal_cond = (not path.is_dir()) and (total_tokens is not None) and (pathsize_tokens < total_tokens)
+    code_literal_cond = code_literal_cond or isinstance(prev_summary, CodeLiteralLeaf)
 
-    elif (not path.is_dir()) and (pathsize_tokens < total_tokens):
+    if code_literal_cond:
         #We're in a code file / block, and we have enough tokens to just paste the literal code.
-        return CodeLiteralLeaf(path, flow_down_tokens, path.read())
-    else:
+        return CodeLiteralLeaf(path, path.read())
+    elif (total_tokens is not None) or isinstance(prev_summary, SummaryBranch):
         #We can't just paste the code (either because we don't have enough tokens, or we're in a dir).
         
         child_paths = path.iter_tracked()
@@ -192,23 +192,25 @@ def summary(path, flow_down_tokens, prev_summary, sources):
 
         children = {}
         for child_path, size in zip(child_paths, sizes):
-            #To implement no recursion, use flow_down_tokens=None
             if flow_down_tokens is not None:
                 child_tokens = flow_down_tokens * (size / total_size)
             else:
                 child_tokens = None
 
             if prev_summary is not None:
-                child_prev_summary = prev_summary.children[child_path.name()]
+                child_prev_summary = prev_summary.children.get(child_path.name())
             else:
                 child_prev_summary = None
 
             children[child_path.name()] = summary(child_path, child_tokens, child_prev_summary, sources)
 
+        return summary_branch(path, children)
+    else:
+        #total_tokens is None and prev_summary is neither CodeLiteralLeaf or SummaryBranch.
         if path.is_dir():
-            return DirSummaryBranch(path, flow_down_tokens, children, tuple(path.listdir()))
+            return DirSummaryLeaf(path, "")
         else:
-            return CodeSummaryBranch(path, flow_down_tokens, children, path.signature())
+            return CodeSummaryLeaf(path, signature(path))
 
 
 # Abstract classes
@@ -224,26 +226,46 @@ class Dir(): pass
 class Code(): pass
 
 class SummaryBranch(Summary):
-    def __init__(self, path, flow_down_tokens, children, extra):
+    def __init__(self, path, children, extra):
         isinstance(path, FullPath)
-        isinstance(flow_down_tokens, int)
         isinstance(children, dict)
         assert is_hashable(extra)
 
         self.path = path
         self.children = children
-        self.flow_down_tokens = flow_down_tokens
         self.extra = extra
 
         hashable_dict = tuple(children.items())
         self._hash = hash((path, hashable_dict, extra))
 
 class DirSummaryBranch(SummaryBranch, Dir):
-    pass # extra is a list of files.
+    def dump(self):
+        result = f'Contents of directory {self.path.path}:\n'
+        result = result + '\n'.join([*self.children.keys()])
+
+        results = [result]
+        for child in self.children.values():
+            child_dump = child.dump()
+            assert isinstance(child_dump, list)
+            results = results + child_dump
+
+        return results
+
+def summary_branch(path, children):
+    if path.is_dir():
+        return DirSummaryBranch(path, children, tuple(path.listdir()))
+    else:
+        return CodeSummaryBranch(path, children, signature(path))
 
 class CodeSummaryBranch(SummaryBranch, Code):
-    pass # extra is an optional summary of the file/block
+    def dump(self, indent=""):
 
+        child_dumps = ''.join([child.dump(indent=indent+'  ') for child in self.children.values()])
+        if self.path.is_file():
+            result = f"Overview of {self.path.path}:\n{child_dumps}"
+            return [result]
+        else:
+            return f'{indent}{self.extra}\n{child_dumps}'
 
 class SummaryLeaf(Summary):
     def __init__(self, path, extra):
@@ -256,15 +278,20 @@ class SummaryLeaf(Summary):
         self._hash = hash((path, extra))
 
 class DirSummaryLeaf(SummaryLeaf, Dir):
-    pass # extra is a list of files.
+    def dump(dump):
+        return ""
 
 class CodeSummaryLeaf(SummaryLeaf, Code):
-    pass # extra is an optional summary of the file/block
+    def dump(self, indent=""):
+        if self.path.is_file():
+            assert not self.extra 
+            return []
+        else:
+            return indent + self.extra + '\n'
 
 class CodeLiteralLeaf(Summary, Code):
-    def __init__(self, path, flow_down_tokens, code):
+    def __init__(self, path, code):
         isinstance(path, FullPath)
-        isinstance(flow_down_tokens, int)
         isinstance(code, str)
 
         self.path = path
@@ -272,5 +299,10 @@ class CodeLiteralLeaf(Summary, Code):
 
         self._hash = hash((path, code))
 
+    def dump(self):
+        return [f'Full code from {self.path.path}:\n{self.code}']
+
+
 path = full_path('.')
-summary = summary(path, None, None, {full_path('.'): 100, full_path('summary.py'): 100})
+summary = summary(path, None, None, {full_path('.'): 100, full_path('summary.py'): 1000})
+print('\n\n\n\n'.join(summary.dump()))

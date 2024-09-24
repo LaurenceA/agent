@@ -59,7 +59,8 @@ This will install the package in editable mode, allowing you to make changes to 
 
 ## TODOs:
 
-* Cache tree summaries in FullPath.  Use the file hash.
+* Deal with repeated function/class definitions in treesitter.
+* Summaries: take sources and derive the "roots" (i.e. don't start from the file directory root).
 
 * How to cross-reference context vs line numbers in error messages?
   - The problem is that error messages come with line numbers in the underlying files.

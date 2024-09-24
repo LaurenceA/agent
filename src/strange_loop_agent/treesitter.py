@@ -95,7 +95,7 @@ def summarize_code_with_blocks(code: str):
 
         lines_between = lines[start_line: last_line]
 
-        if 0 < len(lines_between):
+        if any(0 < len(line) for line in lines_between):
             block_num = block_num+1
             code_between = '\n'.join(lines_between).strip()
 
@@ -103,7 +103,7 @@ def summarize_code_with_blocks(code: str):
 
             result[name] = TreeSitterCodeSummary(
                         name=name,
-                        signature="",
+                        signature=name,
                         start_line=start_line,
                         last_line=last_line,
                         code=code_between,
