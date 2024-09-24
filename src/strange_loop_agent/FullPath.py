@@ -92,11 +92,25 @@ class FullPath():
             ts = self.treesitter_file_summary()
             return codeblock_exists(ts, self.parts)
 
+    def is_in(self, directory):
+        """
+        Check if a self is within a specific "directory".
+        Deals with parts correctly.
+        """
+        assert isinstance(directory, FullPath)
+        if not self.path.is_relative_to(directory.path):
+            return False
+        elif len(self.parts) < len(directory.parts):
+            #If directory has (strictly) more parts, you can't be in directory.
+            return False
+        else:
+            return all(x == y for (x, y) in zip(directory.parts, self.parts[:len(directory.parts)]))
+
     def signature(self):
         if len(self.parts) == 0:
             return ""
         else:
-            self.treesitter_summary().signature
+            return self.treesitter_summary().signature
 
     def is_file(self):
         return self.path.is_file() and len(self.parts) == 0
@@ -176,6 +190,7 @@ class FullPath():
         path = self.path.relative_to(Path.cwd())
 
         return f"FullPath({path}{parts})"
+
 
 def full_path(path):
     """

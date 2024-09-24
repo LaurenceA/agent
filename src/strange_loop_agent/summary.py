@@ -1,4 +1,5 @@
 import os
+import operator
 from FullPath import FullPath, full_path
 
 """
@@ -133,15 +134,20 @@ def is_hashable(obj):
     except TypeError:
         return False
 
-def max_none(x, y):
-    if   (x is not None) and (y is not None):
-        return max(x, y)
-    elif y is not None:
-        return y
-    elif x is not None:
-        return x
-    else:
-        return None
+def binary_none(f):
+    def inner(x, y):
+        if   (x is not None) and (y is not None):
+            return f(x, y)
+        elif y is not None:
+            return y
+        elif x is not None:
+            return x
+        else:
+            return None
+
+    return inner
+max_none = binary_none(max)
+add_none = binary_none(operator.add)
 
 def summary(path, flow_down_tokens, prev_summary, sources):
     assert isinstance(path, FullPath)
@@ -150,22 +156,35 @@ def summary(path, flow_down_tokens, prev_summary, sources):
         assert prev_summary.path == path
         flow_down_tokens = max_none(flow_down_tokens, prev_summary.flow_down_tokens)
 
+    total_tokens = flow_down_tokens
+    for source_path, source_tokens in sources.items():
+        #total_tokens is all available tokens, from sources above and below
+        if source_path.is_in(path):
+            total_tokens = add_none(total_tokens, source_tokens)
+        #flow_down_tokens is just tokens that arise from sources above, and right here.
+        if source_path == path:
+            flow_down_tokens = add_none(flow_down_tokens, source_tokens)
+
     pathsize_tokens = path.getsize() / 4
 
-    if flow_down_tokens is None:
+    #Pass any tokens further down?
+    #This is a global setting (for all children), so that we can terminate the tree without
+    #exploring every node, and making sure that we always have all children at a Branch node.
+    if (flow_down_tokens is not None) and (flow_down_tokens < (pathsize_tokens / 16)):
+        flow_down_tokens = None
+
+    if total_tokens is None:
+        #Produces a leaf node if there are no sources, and no flow_down_tokens.
         if path.is_dir():
             return DirSummaryLeaf(path, "")
         else:
             return CodeSummaryLeaf(path, path.signature())
 
-    elif (not path.is_dir()) and (pathsize_tokens < flow_down_tokens):
+    elif (not path.is_dir()) and (pathsize_tokens < total_tokens):
         #We're in a code file / block, and we have enough tokens to just paste the literal code.
         return CodeLiteralLeaf(path, flow_down_tokens, path.read())
     else:
         #We can't just paste the code (either because we don't have enough tokens, or we're in a dir).
-        
-        #Are we going to recurse, or just terminate here?  Heuristic.
-        recurse = (pathsize_tokens / 8) < flow_down_tokens 
         
         child_paths = path.iter_tracked()
         sizes = [child_path.getsize() for child_path in child_paths]
@@ -174,7 +193,7 @@ def summary(path, flow_down_tokens, prev_summary, sources):
         children = {}
         for child_path, size in zip(child_paths, sizes):
             #To implement no recursion, use flow_down_tokens=None
-            if recurse:
+            if flow_down_tokens is not None:
                 child_tokens = flow_down_tokens * (size / total_size)
             else:
                 child_tokens = None
@@ -204,24 +223,6 @@ class Summary:
 class Dir(): pass
 class Code(): pass
 
-class SummaryLeaf(Summary):
-    def __init__(self, path, extra):
-        assert isinstance(path, FullPath)
-        assert is_hashable(extra)
-
-        self.path = path
-        self.extra = extra
-
-        self._hash = hash((path, extra))
-
-class DirSummaryLeaf(SummaryLeaf, Dir):
-    pass # extra is a list of files.
-
-class CodeSummaryLeaf(SummaryLeaf, Code):
-    pass # extra is an optional summary of the file/block
-
-
-
 class SummaryBranch(Summary):
     def __init__(self, path, flow_down_tokens, children, extra):
         isinstance(path, FullPath)
@@ -243,7 +244,24 @@ class DirSummaryBranch(SummaryBranch, Dir):
 class CodeSummaryBranch(SummaryBranch, Code):
     pass # extra is an optional summary of the file/block
 
-class CodeLiteralLeaf(SummaryLeaf, Code):
+
+class SummaryLeaf(Summary):
+    def __init__(self, path, extra):
+        isinstance(path, FullPath)
+        assert is_hashable(extra)
+
+        self.path = path
+        self.extra = extra
+
+        self._hash = hash((path, extra))
+
+class DirSummaryLeaf(SummaryLeaf, Dir):
+    pass # extra is a list of files.
+
+class CodeSummaryLeaf(SummaryLeaf, Code):
+    pass # extra is an optional summary of the file/block
+
+class CodeLiteralLeaf(Summary, Code):
     def __init__(self, path, flow_down_tokens, code):
         isinstance(path, FullPath)
         isinstance(flow_down_tokens, int)
@@ -255,4 +273,4 @@ class CodeLiteralLeaf(SummaryLeaf, Code):
         self._hash = hash((path, code))
 
 path = full_path('.')
-summary = summary(path, 10000, None, [])
+summary = summary(path, None, None, {full_path('.'): 100, full_path('summary.py'): 100})
