@@ -153,44 +153,76 @@ def summary(path, flow_down_tokens, prev_summary, sources):
     pathsize_tokens = path.getsize() / 4
 
     if flow_down_tokens is None:
-        return empty
+        if path.is_dir():
+            return DirSummaryLeaf(path, "")
+        else:
+            return CodeSummaryLeaf(path, path.signature())
+
     elif (not path.is_dir()) and (pathsize_tokens < flow_down_tokens):
         #We're in a code file / block, and we have enough tokens to just paste the literal code.
-        return CodeLiteral(path, flow_down_tokens, path.read())
-    elif (not path.is_dir()) and (flow_down_tokens < pathsize_tokens / 8):
-        #We're in a code file / block, and we have too few tokens to recursively summarise.
-        return CodeSummary(path, None, {}, path.signature())
+        return CodeLiteralLeaf(path, flow_down_tokens, path.read())
     else:
-        #We're in a directory or code block, and we have enough tokens to recursively summarise.
+        #We can't just paste the code (either because we don't have enough tokens, or we're in a dir).
+        
+        #Are we going to recurse, or just terminate here?  Heuristic.
+        recurse = (pathsize_tokens / 8) < flow_down_tokens 
+        
         child_paths = path.iter_tracked()
-
         sizes = [child_path.getsize() for child_path in child_paths]
         total_size = sum(sizes) + 1 #+1 avoids divide by zero.
-        children = {}
 
+        children = {}
         for child_path, size in zip(child_paths, sizes):
-            child_tokens = flow_down_tokens * (size / total_size)
+            #To implement no recursion, use flow_down_tokens=None
+            if recurse:
+                child_tokens = flow_down_tokens * (size / total_size)
+            else:
+                child_tokens = None
+
             if prev_summary is not None:
                 child_prev_summary = prev_summary.children[child_path.name()]
             else:
                 child_prev_summary = None
+
             children[child_path.name()] = summary(child_path, child_tokens, child_prev_summary, sources)
 
         if path.is_dir():
-            return DirSummary(path, flow_down_tokens, children, tuple(path.listdir()))
+            return DirSummaryBranch(path, flow_down_tokens, children, tuple(path.listdir()))
         else:
-            return CodeSummary(path, flow_down_tokens, children, path.signature())
+            return CodeSummaryBranch(path, flow_down_tokens, children, path.signature())
 
 
 # Abstract classes
 
-class SummaryLiteralEmpty:
-    pass
+class Summary:
+    def __eq__(self, other):
+        return hash(self) == hash(other)
+
+    def __hash__(self):
+        return self._hash
 
 class Dir(): pass
 class Code(): pass
 
-class Summary(SummaryLiteralEmpty):
+class SummaryLeaf(Summary):
+    def __init__(self, path, extra):
+        assert isinstance(path, FullPath)
+        assert is_hashable(extra)
+
+        self.path = path
+        self.extra = extra
+
+        self._hash = hash((path, extra))
+
+class DirSummaryLeaf(SummaryLeaf, Dir):
+    pass # extra is a list of files.
+
+class CodeSummaryLeaf(SummaryLeaf, Code):
+    pass # extra is an optional summary of the file/block
+
+
+
+class SummaryBranch(Summary):
     def __init__(self, path, flow_down_tokens, children, extra):
         isinstance(path, FullPath)
         isinstance(flow_down_tokens, int)
@@ -203,21 +235,15 @@ class Summary(SummaryLiteralEmpty):
         self.extra = extra
 
         hashable_dict = tuple(children.items())
-        self._hash = hash((path, flow_down_tokens, hashable_dict, extra))
+        self._hash = hash((path, hashable_dict, extra))
 
-    def __eq__(self, other):
-        return hash(self) == hash(other)
-
-    def __hash__(self):
-        return self._hash
-
-class DirSummary(Summary, Dir):
+class DirSummaryBranch(SummaryBranch, Dir):
     pass # extra is a list of files.
 
-class CodeSummary(Summary, Code):
+class CodeSummaryBranch(SummaryBranch, Code):
     pass # extra is an optional summary of the file/block
 
-class CodeLiteral(SummaryLiteralEmpty):
+class CodeLiteralLeaf(SummaryLeaf, Code):
     def __init__(self, path, flow_down_tokens, code):
         isinstance(path, FullPath)
         isinstance(flow_down_tokens, int)
@@ -226,19 +252,7 @@ class CodeLiteral(SummaryLiteralEmpty):
         self.path = path
         self.code = code
 
-        self._hash = hash((path, flow_down_tokens, code))
-
-    def __eq__(self, other):
-        return hash(self) == hash(other)
-
-    def __hash__(self):
-        return self._hash
-
-class Empty(SummaryLiteralEmpty):
-    def dump():
-        return ""
-
-empty = Empty()
+        self._hash = hash((path, code))
 
 path = full_path('.')
 summary = summary(path, 10000, None, [])
