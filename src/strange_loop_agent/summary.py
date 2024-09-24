@@ -1,11 +1,12 @@
 import os
-from pathspec import PathSpec
-from pathspec.patterns import GitWildMatchPattern
+from pathlib import Path
+
+from utils import not_binary
 
 """
 There are two key ideas here.
 
-## Threshold_mult for recursive summarisation
+## tokens for recursive summarisation
 
 The key idea here is that summaries are computed recursively, i.e.
 if you get the summary for the root directory of a project, then
@@ -39,9 +40,15 @@ more deeply? In that case, we add a "source" of tokens at that
 directory. These sources are provided as a list. That means you need
 to recurse through all the files / folders.
 
-Third, What if we want to summarise something outside the project root 
-directory? e.g. a library function?  The solution is to have a list of
-summarisation "roots".
+Third, where to start the tree?  At the project root, or the file system
+root?  We choose the file system root, as that allows you to move to 
+different projects, or capture e.g. library source code in your summaries.
+
+Fourth, if you start from the root of the file system, you probably don't
+want summaries from the root of the file system.  The solution is to have
+a parameter, flow_down_tokens=None, initially.  When you have 
+flow_down_tokens=None, and there are no sources within the file/
+subdirectory, then you use an EmptySummary.
 
 ## Diffing summaries for efficient context updates.
 
@@ -69,56 +76,46 @@ much. Instead, we should:
   equal to the corresponding node in the previous tree (using is).
 * Flag if file deleted.
 
+#### Diff for file write.
+Needs special treatment to avoid including the same info in the context twice.
+You can either:
+* Delete the "write" from the conversation log, and include it only in the diff.
+* Keep the "write" in the conversation log, and don't include the summary diff.
+
+## Folders
+
+How to print folders?  To print folders, print the folder name + file 
+names (i.e. not full file paths).  That saves tokens, but gives full 
+information.  
+
+When to print folders? Of course, you don't want to print the contents of 
+everything starting from the root directory.  So only print the contents of
+a directory when flow_down_tokens!=None.
+
+How to diff folders?  Include in the context when a file is added or removed.
+
+## Hidden files/folders
+
+When printing a the contents of a directory, print the all files and folders,
+so the agent can see all the files.  But assign zero weight to hidden/non-binary 
+files/folders.
+
+The agent can then: 
+* load a binary file by name
+* put a source on e.g. a hidden file / directory if they want
+
+## Files
+
+Files are split up into CodeSummary blocks.
+
+The paths are e.g. /absolute/path/to/file#class_name#method_name.
+
 ## Visibility + configurability
 
 Problem: there are lots of files you don't want to include in the summary.
 Solutions:
 * For visibility, command to print tracked + untracked files.
 * For configurability, .gitignore like format.
-"""
-
-#def not_binary(file_path, sample_size=1024):
-#    """
-#    A heuristic to determine whether a file is binary (and hence should be ignored).
-#
-#    TODO: improve with a local LLM?
-#    """
-#    with open(file_path, 'rb') as file:
-#        sample = file.read(sample_size)
-#    
-#    # Check for null bytes
-#    if b'\x00' in sample:
-#        return True
-#
-#    # Check if the sample contains mostly printable ASCII characters
-#    printable_chars = sum(32 <= byte <= 126 for byte in sample)
-#    return printable_chars / len(sample) > 0.7  # Adjust threshold as needed
-#
-#def listdir(path):
-#    """
-#    A list of all non-binary, non-hidden files
-#
-#    Returns the full path.
-#    """
-#    result = []
-#    for child_path in os.listdir(path):
-#        if not_binary(child_path) and (not child_path[0] == '.'):
-#            result.append(os.path.join(path, child_path))
-#
-#def listdir(path):
-#    """
-#    Assumes everything is part of a git repo.
-#    """
-#    result = subprocess.run(f'git ls-tree HEAD --name-only {path}', shell=True, capture_output=True, text=True)
-#    assert 0 == result.return_code
-#    return result.split('\n')
-
-default_gitignore = """
-# Ignore all hidden files and directories in all folders
-.*
-
-# Don't ignore .gitignore itself
-!.gitignore
 """
 
 def dict_eq(d1, d2):
@@ -131,138 +128,156 @@ def dict_eq(d1, d2):
     else:
         return all(d1[k] is d2[k] for k in d1)
 
-class SummaryConfig():
-    def __init__(self):
-        self.gitignore_spec = PathSpec.from_lines(GitWildMatchPattern, default_gitignore.split())
+def listdir_tracked(path):
+    """
+    Lists directories and non-binary files that aren't hidden (i.e. don't start with a '.').
+    """
+    assert isinstance(path, Path)
+    assert file_path.is_dir()
 
-    def listdir_tracked_untracked(self, path):
-        """
-        Lists the absolute path of all files/directories at path.
-        Splits them into tracked files and untracked files.
-        """
-        tracked = []
-        untracked = []
+    result = []
+    for filename in os.listdir(path):
+        abs_path = os.path.join(path, filename)
 
-        for filename in os.listdir(path):
-            abs_path = os.path.join(path, filename)
+        if ('.' != filename[0]) and (os.path.isdir(abs_path) or not_binary_file(abs_path)):
+            result.append(filename)
+    return result
 
-            if self.gitignore_spec.match_file(filename):
-                untracked.append(abs_path)
-            else:
-                tracked.append(abs_path)
-        return tracked, untracked
+def getsize_file(path):
+    """
+    Returns a very, _very_ rough approximation of the number of tokesn in the file as the
+    number of bytes divided by 4.
+    """
+    assert isinstance(path, Path)
+    assert not file_path.is_dir()
 
-    def listdir_tracked(self, path):
-        return self.listdir_tracked_untracked(path)[0]
+    return os.path.getsize(path) / 4
 
-    def getsize_file(self, path):
-        """
-        Returns a very, _very_ rough approximation of the number of tokesn in the file as the
-        number of bytes divided by 4.
-        """
-        return os.path.getsize(path) / 4
+def getsize(path):
+    """
+    For a file, returns the size of the file, measured in approximate tokens.
+    For a directory, returns the total number of tokens in all tracked files in that directory (recursively)
+    """
+    assert isinstance(path, Path)
 
-    def getsize(self, path):
-        """
-        For a file, returns the size of the file, measured in approximate tokens.
-        For a directory, returns the total number of tokens in all tracked files in that directory (recursively)
-        """
-        if os.path.isdir(path):
-            return sum(self.getsize(child_path) for child_path in self.listdir_tracked(path))
+    if path.is_dir():
+        return sum(self.getsize(child_path) for child_path in self.listdir_tracked(path))
+    else:
+        return self.getsize_file(path)
+
+def summary(path, flow_down_tokens, prev_summary, sources):
+    """
+    Summarises a file or directory.
+    """
+    assert isinstance(path, Path)
+
+    if path.is_dir():
+        return self.dir_summary(path, flow_down_tokens, prev_summary, sources)
+    else:
+        return self.file_summary(path, flow_down_tokens, prev_summary, sources)
+
+def dir_summary(path, flow_down_tokens, prev_summary, sources):
+    """
+    Summarises a directory.
+    """
+    assert isinstance(path, Path)
+    assert path.is_dir()
+
+    if prev_summary is not None:
+        assert prev_summary.path == path
+
+    child_paths = listdir_tracked(path)
+
+    if flow_down_tokens is None:
+        if isinstance(prev_summary, DirSummaryEmpty):
+            return prev_summary
         else:
-            return self.getsize_file(path)
+            return DirSummaryEmpty()
+    else:
+    if 10 * len(child_paths) < tokens:
+        #If all path of files in this directory will fit into context
+        sizes = [self.getsize(child_path) for child_path in child_paths]
+        total_size = sum(sizes)
 
-    def summary(self, path, tokens, prev_summary, sources):
-        """
-        Summarises a file or directory.
-        """
-        if os.path.isdir(path):
-            return self.dir_summary(path, tokens, prev_summary, sources)
+        new_summaries = {}
+        for child_path, size in zip(child_paths, sizes):
+            child_tokens = tokens * (size / total_size)
+            if isinstance(prev_summary, DirSummary):
+                child_prev_summary = prev_summary.get(child_path)
+            else:
+                child_prev_summary = None
+            
+            new_summaries[child_path] = self.summary(child_path, child_tokens, child_prev_summary, sources)
+
+        if isinstance(prev_summary, DirSummaryFiles) and dict_eq(new_summaries, prev_summary.summaries):
+            return prev_summary
         else:
-            return self.file_summary(path, tokens, prev_summary, sources)
-
-    def dir_summary(self, path, tokens, prev_summary, sources):
-        """
-        Summarises a directory.
-        """
-        if prev_summary is not None:
-            assert prev_summary.path == path
-
-        child_paths = self.listdir_tracked(path)
-
-        if 10 * len(child_paths) < tokens:
-            #If all path of files in this directory will fit into context
-            sizes = [self.getsize(child_path) for child_path in child_paths]
-            total_size = sum(sizes)
-
-            new_summaries = {}
-            for child_path, size in zip(child_paths, sizes):
-                child_tokens = tokens * (size / total_size)
-                if isinstance(prev_summary, DirSummary):
-                    child_prev_summary = prev_summary.get(child_path)
-                else:
-                    child_prev_summary = None
-                
-                new_summaries[child_path] = self.summary(child_path, child_tokens, child_prev_summary, sources)
-
-            if isinstance(prev_summary, DirSummaryFiles) and dict_eq(new_summaries, prev_summary.summaries):
-                return prev_summary
-            else:
-                return DirSummaryFiles(path, new_summaries)
+            return DirSummaryFiles(path, new_summaries)
+    else:
+        #If the paths won't fit into context
+        if isinstance(prev_summary, DirSummaryEmpty):
+            return prev_summary
         else:
-            #If the paths won't fit into context
-            if isinstance(prev_summary, DirSummaryEmpty):
-                return prev_summary
-            else:
-                return DirSummaryEmpty(path)
- 
-    def file_summary(self, path, tokens, prev_summary, sources):
-        if prev_summary is not None:
-            assert prev_summary.path == path
+            return DirSummaryEmpty(path)
 
-        filesize = self.getsize_file(path)
+def file_summary(self, path, tokens, prev_summary, sources):
+    if prev_summary is not None:
+        assert prev_summary.path == path
 
-        if filesize < tokens:
-            #If we have enough tokens, include the whole file in the summary.
-            with open(path, "r") as file:
-                file_contents = file.read()
+    filesize = self.getsize_file(path)
 
-            if isinstance(prev_summary, FileSummaryFull) and prev_summary.file_contents == file_contents:
-                return prev_contents
-            else:
-                return FileSummaryFull(path, file_contents)
+    if filesize < tokens:
+        #If we have enough tokens, include the whole file in the summary.
+        with open(path, "r") as file:
+            file_contents = file.read()
 
-        #elif filesize/4 < tokens:
-        #    #GPT-4o summary of file.
-
-        #elif filesize/8 < tokens:
-        #    #tree-sitter summary of file
-
+        if isinstance(prev_summary, FileSummaryFull) and prev_summary.file_contents == file_contents:
+            return prev_contents
         else:
-            #If we just have enough tokens for the path, include just the path.
-            if isinstance(prev_summary, FileSummaryPath):
-                return prev_summary
-            else:
-                return FileSummaryPath(path)
+            return FileSummaryFull(path, file_contents)
 
+    #elif filesize/4 < tokens:
+    #    #GPT-4o summary of file.
+
+    #elif filesize/8 < tokens:
+    #    #tree-sitter summary of file
+
+    else:
+        #If we just have enough tokens for the path, include just the path.
+        if isinstance(prev_summary, FileSummaryPath):
+            return prev_summary
+        else:
+            return FileSummaryPath(path)
+
+
+# Abstract classes
 class Summary():
     pass
+
+class SummaryEmpty():
+    def dump():
+        return ""
+
+class SummaryFull():
+    def __init__(self, path, summaries)
+        isinstance(path, str)
+        isinstance(summaries, dict)
+        self.path = path
+        self.summaries = summaries
 
 class DirSummary(Summary):
     pass
 
-class DirSummaryEmpty(DirSummary):
-    """
-    Too many filenames to include in the summary!
-    """
-    def __init__(self, path):
-        isinstance(path, str)
-        self.path = path
+class FileSummary(Summary):
+    pass
 
-    def dump(self):
-        return self.path + '(directory)'
+# Concrete classes
 
-class DirSummaryFiles(DirSummary):
+class FileSummaryFull(FileSummary, SummaryFull):
+    def dump():
+        return f'ls {self.path}\n' + '\n'
+
+class DirSummaryFull(DirSummary):
     def __init__(self, path, summaries):
         """
         Summaries is a dict mapping an absolute paths to a summary.
@@ -276,9 +291,6 @@ class DirSummaryFiles(DirSummary):
         return ''.join([x.dump() for x in self.summaries.values()])
 
 
-class FileSummary(Summary):
-    pass
-
 class FileSummaryFull(FileSummary):
     def __init__(self, path, file_contents):
         self.path = path
@@ -287,12 +299,14 @@ class FileSummaryFull(FileSummary):
     def dump(self):
         return f"\n\n\nFile: {self.path}\nContents:\n{self.file_contents}\n\n\n"
 
-class FileSummaryPath(FileSummary):
-    def __init__(self, path):
-        self.path = path
 
-    def dump(self):
-        return self.path + '\n'
+
+class DirSummaryEmpty(DirSummary, EmptySummary):
+    pass
+
+class FileSummaryEmpty(FileSummary, EmptySummary):
+    pass
+
 
 sc = SummaryConfig()
 summary = sc.summary('/Users/laurence_ai/Dropbox/git/agent/src/strange_loop_agent', 100000000, None, None)

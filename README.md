@@ -58,30 +58,20 @@ This will install the package in editable mode, allowing you to make changes to 
   - Does mean that you can't write to previously untracked files.
 
 ## TODOs:
-* Tracked file names are always available to the Agent (all of them are dumped in initially, and added as new files are written).
-* Files / sections are referred to as e.g. path/to/file:section_name:subsection_name, where e.g. section_name could be the name of a class and subsection_name could be the name of a subsection.
+
+* How to cross-reference context vs line numbers in error messages?
+  - The problem is that error messages come with line numbers in the underlying files.
+  - However, we don't really want to embed the line numbers in code summaries, because then you have to update the code summaries every time the line numbers change.  And that could happen alot if you change something higher in the file.
+  - The solution is to take the error message and:
+    - Use GPT-4o mini to take the error message, and return the filenames + linenumbers referred to in the error message.
+    - Translate these filenames + linenumbers into relative paths (e.g. path to a function + line number within the function).
+    - Put these back into the error message.
+
+
+
+* Files / sections are referred to as e.g. path/to/file#section_name#subsection_name, where e.g. section_name could be the name of a class and subsection_name could be the name of a subsection.
 * For every LLM call, we 
 * When we open a file
-
-
-
-* Folder summary (can be run when starting in a project, or when ...)
-if README present:
-    paste/summarise
-
-dir_summary(path, threshold_mult):
-    for file/dir in folder:
-        paste file/dir summary
-
-file_summary(path, threshold_mult):
-    if size of code below low threshold:
-        paste all code.
-    elif size of code below higher threshold:
-        paste GPT-4o summary of file.
-    elif size of code below higher threshold:
-        paste tree-sitter summary of file
-    else:
-        paste file name
 
 * Updates to persistent summaries:
   - Agent diffs are in the code anyway.
@@ -90,7 +80,9 @@ file_summary(path, threshold_mult):
 * Summary primitives:
   - Summarise file with GPT-4o mini.
   - Tree sitter to extract function/class definitions in file.
-  - 
+
+* Undo files:
+  - Only undo files written by us!
 
 * Tasks:
   - Contextual summary (so the agent knows what to edit).
