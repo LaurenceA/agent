@@ -49,11 +49,14 @@ pip install -e .
 
 This will install the package in editable mode, allowing you to make changes to the source code and immediately see the effects.
 
-## Next steps:
-* Implement undo.
-* Check file writing (in particular, you can't write untracked files that already exist).
-
 ## Features:
+* Summaries:
+  - You set a token budget for the summary, which then "flows" through the directory tree.
+  - The model can add extra token budget at interesting nodes.
+  - Summaries are cache-friendly: we keep the summary in the cache, and update only new information.
+  - Summaries are updated both for externally updated and agent-written files.
+* The model has a unified FullPath abstraction, allowing it to refer to class/function/methods within a file.
+  - e.g. `path/to/file#class_name#method_name`
 * Rewinding / undo, supported by functional architecture, plus git-like file store.
   - Does mean that you can't write to previously untracked files.
 
