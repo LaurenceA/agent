@@ -55,7 +55,14 @@ def function_class_treesitter_summaries(code: str):
             last_line = node.end_point[0] + 1
             
             name_node = next(capture for capture in query.captures(node) if capture[1].endswith('.name'))[0]
-            name = name_node.text.decode('utf8')
+            base_name = name_node.text.decode('utf8')
+
+            #Deals with repeated definitions of the same symbol.
+            i = 1
+            name = base_name
+            while name in stack[-1].children:
+                i += 1
+                name = base_name + str(i)
             
             new_summary = TreeSitterCodeSummary(name, signature, start_line, last_line, code, {})
             

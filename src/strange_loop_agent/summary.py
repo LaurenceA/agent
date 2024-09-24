@@ -171,20 +171,20 @@ def summary(path, flow_down_tokens, prev_summary, sources):
 
     pathsize_tokens = path.getsize() / 4
 
-    #Pass any tokens further down?
-    #This is a global setting (for all children), so that we can terminate the tree without
-    #exploring every node, and making sure that we always have all children at a Branch node.
-    if (flow_down_tokens is not None) and (flow_down_tokens < (pathsize_tokens / 16)):
-        flow_down_tokens = None
-
     code_literal_cond = (not path.is_dir()) and (total_tokens is not None) and (pathsize_tokens < total_tokens)
-    code_literal_cond = code_literal_cond or isinstance(prev_summary, CodeLiteralLeaf)
+    code_literal_cond = code_literal_cond or (isinstance(prev_summary, CodeLiteralLeaf) and path.is_file())
 
     if code_literal_cond:
         #We're in a code file / block, and we have enough tokens to just paste the literal code.
         return CodeLiteralLeaf(path, path.read())
     elif (total_tokens is not None) or isinstance(prev_summary, SummaryBranch):
         #We can't just paste the code (either because we don't have enough tokens, or we're in a dir).
+
+        #Pass any tokens further down?
+        #This is a global setting (for all children), so that we can terminate the tree without
+        #exploring every node, and making sure that we always have all children at a Branch node.
+        if (flow_down_tokens is not None) and (flow_down_tokens < (pathsize_tokens / 16)):
+            flow_down_tokens = None
         
         child_paths = path.iter_tracked()
         sizes = [child_path.getsize() for child_path in child_paths]
@@ -304,5 +304,5 @@ class CodeLiteralLeaf(Summary, Code):
 
 
 path = full_path('.')
-summary = summary(path, None, None, {full_path('.'): 100, full_path('summary.py'): 1000})
+summary = summary(path, None, None, {full_path('.'): 100, full_path('summary.py'): 10000})
 print('\n\n\n\n'.join(summary.dump()))
