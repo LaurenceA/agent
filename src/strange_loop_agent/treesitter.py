@@ -93,22 +93,13 @@ def summarize_code_with_blocks(code: str):
     for i in range(len(block_start_end)):
         start_line, last_line = block_start_end[i]
 
-        #push start line down if empty
-        #if nothing is there, start_line should end up at start_line = last_line-1
-        while lines[start_line].strip() == '' and start_line < last_line-1:
-            start_line = start_line + 1
-
-        #pull last line up if empty
-        while lines[last_line-1].strip() == '' and start_line <= last_line:
-            last_line = last_line - 1
-
         lines_between = lines[start_line: last_line]
 
         if 0 < len(lines_between):
             block_num = block_num+1
             code_between = '\n'.join(lines_between).strip()
 
-            name = f"%#code_block_{block_num}"
+            name = f"%code_block_{block_num}"
 
             result[name] = TreeSitterCodeSummary(
                         name=name,

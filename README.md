@@ -59,6 +59,8 @@ This will install the package in editable mode, allowing you to make changes to 
 
 ## TODOs:
 
+* Cache tree summaries in FullPath.  Use the file hash.
+
 * How to cross-reference context vs line numbers in error messages?
   - The problem is that error messages come with line numbers in the underlying files.
   - However, we don't really want to embed the line numbers in code summaries, because then you have to update the code summaries every time the line numbers change.  And that could happen alot if you change something higher in the file.
@@ -67,11 +69,6 @@ This will install the package in editable mode, allowing you to make changes to 
     - Translate these filenames + linenumbers into relative paths (e.g. path to a function + line number within the function).
     - Put these back into the error message.
 
-
-
-* Files / sections are referred to as e.g. path/to/file#section_name#subsection_name, where e.g. section_name could be the name of a class and subsection_name could be the name of a subsection.
-* For every LLM call, we 
-* When we open a file
 
 * Updates to persistent summaries:
   - Agent diffs are in the code anyway.
