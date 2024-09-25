@@ -139,7 +139,16 @@ class FullPath():
         return is_valid_dir(self.path) and (len(self.parts) == 0)
 
     def is_valid_code(self):
-        return is_valid_text_file(self.path) and self.exists()
+        if not is_valid_text_file(self.path):
+            #Not a valid code file.
+            return False
+        elif len(self.parts) == 0:
+            #We are in a valid code file, and there are no parts
+            return True
+        else:
+            #We are in a valid code file, and there are parts
+            ts = treesitter_file_summary(self.path)
+            return codeblock_exists(ts, self.parts)
 
     def is_valid(self):
         return self.is_valid_code() or self.is_valid_dir()
@@ -153,21 +162,21 @@ class FullPath():
     def treesitter_summary(self):
         ts = treesitter_file_summary(self.path)
         return codeblock_index(ts, self.parts)
-
-    def exists(self):
-        if not self.path.exists():
-            #Path doesn't exist
-            return False
-        elif 0 == len(self.parts):
-            #Path exists, and there aren't any parts
-            return True
-        elif not is_valid_text_file(self.path):
-            #Path exists, there are parts, but not a valid text file.  So it can't have any parts.
-            return False
-        else:
-            #Path exists, there are parts, but is a valid text file.
-            ts = treesitter_file_summary(self.path)
-            return codeblock_exists(ts, self.parts)
+#
+#    def exists(self):
+#        if not self.path.exists():
+#            #Path doesn't exist
+#            return False
+#        elif 0 == len(self.parts):
+#            #Path exists, and there aren't any parts
+#            return True
+#        elif not is_valid_text_file(self.path):
+#            #Path exists, there are parts, but not a valid text file.  So it can't have any parts.
+#            return False
+#        else:
+#            #Path exists, there are parts, but is a valid text file.
+#            ts = treesitter_file_summary(self.path)
+#            return codeblock_exists(ts, self.parts)
 
     def is_in(self, directory):
         """
