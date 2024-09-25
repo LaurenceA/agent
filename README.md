@@ -75,7 +75,10 @@ This will install the package in editable mode, allowing you to make changes to 
 * Summaries: sources for README?
 * Summaries: Optional GPT-4o-mini summaries.
 * Summaries: Anything other than function / class definitions (e.g. Haskell typedef)?
-* System prompt describing paths.
+* Summaries: Move formatting of treesitter code in dump()
+* Summaries: ... e.g. under class when there's methods we haven't include.
+* System prompt describing path/to/file#class_name.
+
 
 * Sources: Tool to add new sources.
 * Sources: Add a source in the starting directory.

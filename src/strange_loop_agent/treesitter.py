@@ -102,7 +102,7 @@ def summarize_code_with_blocks(code: str):
 
         lines_between = lines[start_line: last_line]
 
-        if any(0 < len(line) for line in lines_between):
+        if any(0 < len(line.strip()) for line in lines_between):
             block_num = block_num+1
             code_between = '\n'.join(lines_between).strip()
 
