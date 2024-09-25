@@ -240,16 +240,6 @@ def summary(sources, prev_summary):
     init_path = full_path('/Users/laurence_ai/Dropbox/git')
     assert init_path.is_dir()
     return summary_node(init_path, sources, None, prev_summary)
-#
-#def root_sources(sources: Dict[Path, int]) -> List[Path]:
-#    """
-#    Takes a sources, and converts them to the 
-#    """
-#    root_sources = []
-#    for path in root_sources:
-#        if 1 == sum(not path.is_in(path2) for path2 in root_sources):
-#            root_sources.append(path)
-#    return root_sources
 
 
 """
@@ -353,14 +343,6 @@ class CodeFileOverviewBranch(Branch):
         child_dumps = '\n'.join([child.dump() for child in self.children.values()])
         return [f"FILE: {self.path.path}:\n\n{child_dumps}"]
 
-#Concrete
-#class CodeBlockBranch(CodeBranch): 
-#    def validate(self):
-#        assert all(isinstance(c, CodeBlock) for c in self.children.values())
-#
-#    def dump(self):
-#        return dump_code_block_branch_leaf(self)
-
 def add_parts(path, indent, line):
     parts = '#'.join(path.parts)
     return f"{line.rstrip()}{indent}#PATH:#{parts}\n"
@@ -399,16 +381,6 @@ class CodeFileOverviewLeaf(Leaf):
     def dump(self) -> List[str]:
         assert not self.extra
         return []
-
-#Concrete
-#class CodeBlockLeaf(Leaf): 
-#    """
-#    Doesn't include any nested info about the code block
-#
-#    Extra is the signature of the code block.
-#    """
-#    def dump(self):
-#        return dump_code_block_branch_leaf(self)
 
 #Abstract
 class CodeLiteral(Leaf): 
