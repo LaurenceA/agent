@@ -210,7 +210,7 @@ def summary_node(path, sources, flow_down_tokens, prev_summary):
         return summary_branch(path, children)
     else:
         #total_tokens is None and prev_summary is neither CodeLiteralLeaf or SummaryBranch.
-        if path.is_dir():
+        if path_is_dir:
             return DirSummaryLeaf(path, "")
         else:
             return CodeSummaryLeaf(path, signature(path))
@@ -270,7 +270,9 @@ class DirSummaryBranch(SummaryBranch, Dir):
         return results
 
 def summary_branch(path, children):
-    if path.is_dir():
+    assert path.is_valid()
+
+    if path.is_valid_dir():
         return DirSummaryBranch(path, children, tuple(path.listdir_all()))
     else:
         return CodeSummaryBranch(path, children, signature(path))

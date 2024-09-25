@@ -162,21 +162,6 @@ class FullPath():
     def treesitter_summary(self):
         ts = treesitter_file_summary(self.path)
         return codeblock_index(ts, self.parts)
-#
-#    def exists(self):
-#        if not self.path.exists():
-#            #Path doesn't exist
-#            return False
-#        elif 0 == len(self.parts):
-#            #Path exists, and there aren't any parts
-#            return True
-#        elif not is_valid_text_file(self.path):
-#            #Path exists, there are parts, but not a valid text file.  So it can't have any parts.
-#            return False
-#        else:
-#            #Path exists, there are parts, but is a valid text file.
-#            ts = treesitter_file_summary(self.path)
-#            return codeblock_exists(ts, self.parts)
 
     def is_in(self, directory):
         """
@@ -197,12 +182,6 @@ class FullPath():
             return ""
         else:
             return self.treesitter_summary().signature
-
-    def is_dir(self):
-        return self.path.is_dir() and len(self.parts) == 0
-
-    def has_no_parts(self):
-        return len(self.parts) == 0
 
     def read_path(self):
         assert is_valid_text_file(self.path)
