@@ -1,5 +1,6 @@
 import os
 import operator
+from typing import Dict, List
 from FullPath import FullPath, full_path
 
 """
@@ -157,7 +158,7 @@ def signature(path):
         return f'#{parts}: {path.signature()}'
     
 
-def summary(path, flow_down_tokens, prev_summary, sources):
+def summary_node(path, sources, flow_down_tokens, prev_summary):
     assert isinstance(path, FullPath)
 
     total_tokens = flow_down_tokens
@@ -202,7 +203,7 @@ def summary(path, flow_down_tokens, prev_summary, sources):
             else:
                 child_prev_summary = None
 
-            children[child_path.name()] = summary(child_path, child_tokens, child_prev_summary, sources)
+            children[child_path.name()] = summary_node(child_path, sources, child_tokens, child_prev_summary)
 
         return summary_branch(path, children)
     else:
@@ -211,6 +212,19 @@ def summary(path, flow_down_tokens, prev_summary, sources):
             return DirSummaryLeaf(path, "")
         else:
             return CodeSummaryLeaf(path, signature(path))
+
+def summary(sources, prev_summary):
+    return summary_node(full_path('/'), sources, None, prev_summary)
+#
+#def root_sources(sources: Dict[Path, int]) -> List[Path]:
+#    """
+#    Takes a sources, and converts them to the 
+#    """
+#    root_sources = []
+#    for path in root_sources:
+#        if 1 == sum(not path.is_in(path2) for path2 in root_sources):
+#            root_sources.append(path)
+#    return root_sources
 
 
 # Abstract classes
@@ -261,7 +275,7 @@ class CodeSummaryBranch(SummaryBranch, Code):
     def dump(self, indent=""):
 
         child_dumps = ''.join([child.dump(indent=indent+'  ') for child in self.children.values()])
-        if self.path.is_file():
+        if self.path.has_no_parts():
             result = f"Overview of {self.path.path}:\n{child_dumps}"
             return [result]
         else:
@@ -283,7 +297,7 @@ class DirSummaryLeaf(SummaryLeaf, Dir):
 
 class CodeSummaryLeaf(SummaryLeaf, Code):
     def dump(self, indent=""):
-        if self.path.is_file():
+        if self.path.has_no_parts():
             assert not self.extra 
             return []
         else:
@@ -304,5 +318,6 @@ class CodeLiteralLeaf(Summary, Code):
 
 
 path = full_path('.')
-summary = summary(path, None, None, {full_path('.'): 100, full_path('summary.py'): 10000})
+#summary = summary({full_path('.'): 100, full_path('summary.py'): 10000}, None)
+summary = summary_node(path, {full_path('.'): 100, full_path('summary.py'): 1000}, None, None)
 print('\n\n\n\n'.join(summary.dump()))

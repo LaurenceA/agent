@@ -70,8 +70,14 @@ This will install the package in editable mode, allowing you to make changes to 
     - code in a file
     - code literal
 * Summaries: make sure that writing files interacts correctly with sources
-* Summaries: sources for README.
+* Summaries: Get rid of .encode, and just use length of the string.
+* Summaries: Use a path to index into summary.
+* Summaries: sources for README?
 * Summaries: Optional GPT-4o-mini summaries.
+* Summaries: Anything other than function / class definitions (e.g. Haskell typedef)?
+
+* Sources: Tool to add new sources.
+* Sources: Add a source in the starting directory.
 
 * How to cross-reference context vs line numbers in error messages?
   - The problem is that error messages come with line numbers in the underlying files.
