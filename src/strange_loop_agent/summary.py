@@ -160,6 +160,10 @@ def signature(path):
 
 def summary_node(path, sources, flow_down_tokens, prev_summary):
     assert isinstance(path, FullPath)
+    #Either directory or code, but not both
+    path_is_dir = path.is_valid_dir() 
+    assert path_is_dir != path.is_valid_code() 
+    
 
     total_tokens = flow_down_tokens
     for source_path, source_tokens in sources.items():
@@ -170,10 +174,8 @@ def summary_node(path, sources, flow_down_tokens, prev_summary):
         if source_path == path:
             flow_down_tokens = add_none(flow_down_tokens, source_tokens)
 
-    pathsize_tokens = path.getsize() / 4
-
-    code_literal_cond = (not path.is_dir()) and (total_tokens is not None) and (pathsize_tokens < total_tokens)
-    code_literal_cond = code_literal_cond or (isinstance(prev_summary, CodeLiteralLeaf) and path.is_file())
+    code_literal_cond = (not path_is_dir) and (total_tokens is not None) and (path.getsize()/4 < total_tokens)
+    code_literal_cond = code_literal_cond or (isinstance(prev_summary, CodeLiteralLeaf) and path.is_valid_text_file())
 
     if code_literal_cond:
         #We're in a code file / block, and we have enough tokens to just paste the literal code.
@@ -184,20 +186,20 @@ def summary_node(path, sources, flow_down_tokens, prev_summary):
         #Pass any tokens further down?
         #This is a global setting (for all children), so that we can terminate the tree without
         #exploring every node, and making sure that we always have all children at a Branch node.
-        if (flow_down_tokens is not None) and (flow_down_tokens < (pathsize_tokens / 16)):
+        if (flow_down_tokens is not None) and (flow_down_tokens < 20):
             flow_down_tokens = None
-        
+
         child_paths = path.iter_tracked()
-        sizes = [child_path.getsize() for child_path in child_paths]
-        total_size = sum(sizes) + 1 #+1 avoids divide by zero.
-
+        if flow_down_tokens is not None:
+            #Heuristic for splitting up tokens to child nodes
+            sizes = [child_path.getsize() for child_path in child_paths]
+            total_size = sum(sizes) + 1 #+1 avoids divide by zero.
+            child_tokens = [flow_down_tokens * (size / total_size) for size in sizes]
+        else:
+            child_tokens = [None for _ in child_paths]
+           
         children = {}
-        for child_path, size in zip(child_paths, sizes):
-            if flow_down_tokens is not None:
-                child_tokens = flow_down_tokens * (size / total_size)
-            else:
-                child_tokens = None
-
+        for child_path, child_tokens in zip(child_paths, child_tokens):
             if prev_summary is not None:
                 child_prev_summary = prev_summary.children.get(child_path.name())
             else:
@@ -214,7 +216,9 @@ def summary_node(path, sources, flow_down_tokens, prev_summary):
             return CodeSummaryLeaf(path, signature(path))
 
 def summary(sources, prev_summary):
-    return summary_node(full_path('/'), sources, None, prev_summary)
+    init_path = full_path('/Users/laurence_ai/Dropbox/git')
+    assert init_path.is_dir()
+    return summary_node(init_path, sources, None, prev_summary)
 #
 #def root_sources(sources: Dict[Path, int]) -> List[Path]:
 #    """
@@ -267,7 +271,7 @@ class DirSummaryBranch(SummaryBranch, Dir):
 
 def summary_branch(path, children):
     if path.is_dir():
-        return DirSummaryBranch(path, children, tuple(path.listdir()))
+        return DirSummaryBranch(path, children, tuple(path.listdir_all()))
     else:
         return CodeSummaryBranch(path, children, signature(path))
 
@@ -318,6 +322,6 @@ class CodeLiteralLeaf(Summary, Code):
 
 
 path = full_path('.')
-#summary = summary({full_path('.'): 100, full_path('summary.py'): 10000}, None)
-summary = summary_node(path, {full_path('.'): 100, full_path('summary.py'): 1000}, None, None)
-print('\n\n\n\n'.join(summary.dump()))
+#summary = summary({full_path('src'): 10000}, None)
+#summary = summary_node(path, {full_path('.'): 100, full_path('summary.py'): 1000}, None, None)
+#print('\n\n\n\n'.join(summary.dump()))

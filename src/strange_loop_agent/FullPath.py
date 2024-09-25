@@ -1,5 +1,6 @@
-from pathlib import Path
+import os
 import hashlib
+from pathlib import Path
 from typing import Dict, List
 
 from treesitter import summarize as treesitter_summarize
@@ -18,29 +19,95 @@ def codeblock_index(ts, parts: List[str]):
     else:
         return codeblock_index(ts.children[parts[0]], parts[1:])
 
-def is_binary(path:Path, sample_size=1024):
-    """
-    A heuristic to determine whether a file is binary (and hence should be ignored).
-    """
-    assert path.is_file()
+def is_utf8(path:Path, sample_size=1024):
+    #Checks for a UTF-8 BOM in the first 3 chars
+    with path.open('rb') as file:
+        if file.read(3) == b'\xef\xbb\xbf':
+            return True
 
-    if path.stat().st_size < 100:
-        #If file is super short, assume it isn't binary.
-        return False
-
+    #Else, get a sample from the file.
     with path.open('rb') as file:
         sample = file.read(sample_size)
-    
-    # Check for null bytes
-    if b'\x00' in sample:
-        return True
 
-    # Check if the sample contains mostly printable ASCII characters
-    printable_chars = sum(32 <= byte <= 126 for byte in sample)
-    return printable_chars / len(sample) < 0.7  # Adjust threshold as needed
+    # Check for null bytes in the first 1024 bytes
+    if b'\x00' in sample:
+        return False
+
+    # For a utf-8 file, either bytes sequence of 1001, 1002, 1003 or 1004 must be decodable
+    # as utf-8 has sequences up to 4 bytes long
+    decodable = False
+    for offset in range(4):
+        try:
+            sample[:(len(sample)-offset)].decode('utf-8')
+            decodable = True
+            break
+        except UnicodeDecodeError:
+            pass
+    return decodable
+
+#def is_binary(path:Path, sample_size=1024):
+#    """
+#    A heuristic to determine whether a file is binary (and hence should be ignored).
+#    """
+#    print(path)
+#    assert path.is_file()
+#
+#    if path.stat().st_size < 100:
+#        #If file is super short, assume it isn't binary.
+#        return False
+#
+#    with path.open('rb') as file:
+#        sample = file.read(sample_size)
+#    
+#    # Check for null bytes
+#    if b'\x00' in sample:
+#        return True
+#
+#    # Check if the sample contains mostly printable ASCII characters
+#    printable_chars = sum(32 <= byte <= 126 for byte in sample)
+#    return printable_chars / len(sample) < 0.7  # Adjust threshold as needed
+
+
+"""
+Valid Path must exist, and we must have read access.
+They can be directories or UTF-8 encoded text files.
+
+A valid FullPath is the same, but it could also be a part of a UTF-8 encoded text file.
+"""
+
+def exists_accessible(path: Path):
+    assert isinstance(path, Path)
+    return os.access(path, os.R_OK) and path.exists()
 
 def is_valid_text_file(path: Path):
-    return path.exists() and path.is_file() and (not is_binary(path))
+    assert isinstance(path, Path)
+    return exists_accessible(path) and path.is_file() and is_utf8(path)
+
+def is_valid_dir(path: Path):
+    assert isinstance(path, Path)
+    return exists_accessible(path) and path.is_dir()
+
+def is_valid_path(path: Path):
+    assert isinstance(path, Path)
+    return is_valid_dir(path) or is_valid_text_file(path)
+
+def iterdir_all(path):
+    assert is_valid_dir(path)
+    return [*path.iterdir()]
+
+def iterdir_valid(path: Path):
+    """
+    Lists all directories and non-binary files that are valid.
+    """
+    assert is_valid_dir(path)
+    return [p for p in iterdir_all(path) if is_valid_path(p)]
+
+def iterdir_tracked(path: Path):
+    """
+    Lists all directories and non-binary files that are tracked (i.e. valid, and non hidden (i.e. with a . at the start).
+    """
+    assert is_valid_dir(path)
+    return [p for p in iterdir_valid(path) if ('.' != path.name[0])]
 
 #maps path to path to treesitter.  Uses a cache based on the file hash.
 treesitter_cache = {}
@@ -68,6 +135,15 @@ class FullPath():
         self.path = path
         self.parts = parts
 
+    def is_valid_dir(self):
+        return is_valid_dir(self.path) and (len(self.parts) == 0)
+
+    def is_valid_code(self):
+        return is_valid_text_file(self.path) and self.exists()
+
+    def is_valid(self):
+        return self.is_valid_code() or self.is_valid_dir()
+
     def name(self):
         if 0 < len(self.parts):
             return self.parts[-1]
@@ -75,7 +151,6 @@ class FullPath():
             return self.path.name
 
     def treesitter_summary(self):
-        assert self.exists()
         ts = treesitter_file_summary(self.path)
         return codeblock_index(ts, self.parts)
 
@@ -114,21 +189,11 @@ class FullPath():
         else:
             return self.treesitter_summary().signature
 
-    #def is_file(self):
-    #    return self.path.is_file() and len(self.parts) == 0
-
     def is_dir(self):
         return self.path.is_dir() and len(self.parts) == 0
 
-    #def is_file_or_dir(self):
-    #    return self.is_file() or self.is_dir()
-
     def has_no_parts(self):
         return len(self.parts) == 0
-
-    def iterdir(self):
-        assert self.is_dir()
-        return [FullPath(path) for path in self.path.iterdir()]
 
     def read_path(self):
         assert is_valid_text_file(self.path)
@@ -138,32 +203,23 @@ class FullPath():
     def read(self):
         return self.treesitter_summary().code
 
-    def iterdir_tracked(self):
-        """
-        Lists directories and non-binary files that aren't hidden (i.e. don't start with a '.').
-        """
-        assert self.is_dir()
-
-        result = []
-        for child_path in self.iterdir():
-            if ('.' != child_path.path.name[0]) and is_valid_text_file(child_path.path):
-                result.append(child_path)
-        return result
-
     def iter_tracked(self):
         """
         For a directory, lists directories and non-binary files that aren't hidden (i.e. don't start with a '.').
         For a file / code block, lists child code blocks.
         """
-        if self.is_dir():
-            return self.iterdir_tracked()
+        assert self.is_valid()
+        if self.is_valid_dir():
+            return [FullPath(p) for p in iterdir_tracked(self.path)]
         else:
             ts = self.treesitter_summary()
             return [self.append_part(part) for part in ts.children.keys()]
 
     def getsize(self):
-        if self.is_dir():
-            return sum(child_path.getsize() for child_path in self.iterdir_tracked())
+        assert self.is_valid()
+
+        if self.is_valid_dir():
+            return sum(FullPath(p).getsize() for p in iterdir_tracked(self.path))
         else: 
             return len(self.read().encode('utf-8'))
 
@@ -181,9 +237,9 @@ class FullPath():
     def append_part(self, part):
         return FullPath(self.path, *self.parts, part)
 
-    def listdir(self):
-        assert self.is_dir()
-        return [x.path.name for x in self.iterdir()]
+    def listdir_all(self) -> List[str]:
+        assert self.is_valid_dir()
+        return [p.name for p in iterdir_all(self.path)]
 
     def __repr__(self):
         parts = '#'.join(self.parts)
