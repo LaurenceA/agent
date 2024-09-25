@@ -171,7 +171,7 @@ def summary_node(path, sources, flow_down_tokens, prev_summary):
 
     if code_literal_cond:
         #We're in a code file / block, and we have enough tokens to just paste the literal code.
-        return CodeLiteral(path, path.read())
+        return code_literal(path)
     elif (total_tokens is not None) or isinstance(prev_summary, Branch):
         #We can't just paste the code (either because we don't have enough tokens, or we're in a dir).
 
@@ -209,13 +209,13 @@ def summary_branch(path, children):
 
     if path.is_valid_dir():
         #Directory
-        return DirBranch(path, children, tuple(path.listdir_all()))
+        return DirBranch(path, tuple(path.listdir_all()), children)
     elif 0 == len(path.parts):
         #Code file
-        return CodeFileBranch(path, children, "")
+        return CodeFileOverviewBranch(path, "", children)
     else:
         #Code block
-        return CodeBlockBranch(path, children, path.signature())
+        return CodeBlockOverview(path, path.signature(), children)
 
 def summary_leaf(path):
     assert path.is_valid()
@@ -225,10 +225,16 @@ def summary_leaf(path):
         return DirLeaf(path, "")
     elif 0 == len(path.parts):
         #Code file
-        return CodeFileLeaf(path, "")
+        return CodeFileOverviewLeaf(path, "")
     else:
         #Code block
-        return CodeBlockLeaf(path, path.signature())
+        return CodeBlockOverview(path, path.signature(), {})
+
+def code_literal(path):
+    if 0==len(path.parts):
+        return CodeFileLiteral(path, path.read())
+    else:
+        return CodeBlockLiteral(path, path.read())
 
 def summary(sources, prev_summary):
     init_path = full_path('/Users/laurence_ai/Dropbox/git')
@@ -248,31 +254,39 @@ def summary(sources, prev_summary):
 
 """
 Classes to represent the summaries.
-* Branch indicates that the class has child nodes.
-* Leaf indicates that the class doesn't have child nodes.
+* Overview vs Literal makes sense for code, and indicates whether 
+  it just includes all the code, or has an overview e.g. of methods.
+* Branch vs Leaf indicates whether the file / folder has child nodes.  
+  Important to know which very explicitly, because we want to a  
+  "section" in the summary for all the branches.
 
 dump returns a list of strings for: 
-  Directories (Empty list for DirLeaf, long list for DirBranch)
-  CodeFile (Empty list for CodeFileLeaf, one element list for CodeBranch)
-  CodeLiteral (One element list.  These are annoying because they can be nested either in a Directory or a code file.)
+* DirLeaf (Empty list)
+* DirBranch (List of everything in directory)
+* CodeFileLeaf (Empty list)
+* CodeFileBranch (One element list)
+* CodeFileLiteral (One element list)
 
 dump returns a string for:
-  CodeBlock
+* CodeBlock
 """
 
-class Summary: #Abstract
+#Abstract
+class Summary: 
     def __eq__(self, other):
         return hash(self) == hash(other)
 
     def __hash__(self):
         return self._hash
 
-class Dir(): pass
-class CodeFile(): pass
-class CodeBlock(): pass
+def extract_leading_spaces(s):
+    return s[:len(s) - len(s.lstrip())]
 
-class Branch(Summary): #Abstract
-    def __init__(self, path, children, extra):
+#Abstract
+class Branch(Summary): 
+    def __init__(self, path, extra, children):
+        if children is None:
+            children = {}
         isinstance(path, FullPath)
         isinstance(children, dict)
         assert is_hashable(extra)
@@ -289,12 +303,13 @@ class Branch(Summary): #Abstract
     def validate(self):
         pass
 
-class DirBranch(Branch, Dir):
+#Abstract
+class DirBranch(Branch): 
     def validate(self):
         assert all(isinstance(c, (Dir, CodeFile)) for c in self.children.values())
         
     def dump(self) -> List[str]:
-        result = f'Contents of directory {self.path.path}:\n'
+        result = f'Full contents of directory {self.path.path}:\n'
         result = result + '\n'.join([*self.children.keys()])
 
         results = [result]
@@ -305,24 +320,55 @@ class DirBranch(Branch, Dir):
 
         return results
 
-class CodeFileBranch(Branch, CodeFile):
+#Abstract
+class CodeBlockOverview(Branch):
     def validate(self):
         assert all(isinstance(c, CodeBlock) for c in self.children.values())
-        
-    def dump(self, indent=""):
 
-        child_dumps = ''.join([child.dump(indent=indent+'  ') for child in self.children.values()])
-        return [f"Overview of {self.path.path}:\n{child_dumps}"]
+    def dump(self):
+        assert 0 < len(self.path.parts)
+        parts = '#'.join(self.path.parts)
 
-class CodeBlockBranch(Branch, CodeBlock):
+        if hasattr(self, 'children') and (0 < len(self.children)):
+            #Function or class with children
+            child_dumps = ''.join([child.dump() for child in self.children.values()])
+            return add_parts(self.path, '  ', self.extra) + child_dumps
+        elif 0 < len(self.extra):
+            #Function or class without children
+            indent = extract_leading_spaces(self.extra)
+            return add_parts(self.path, '  ', self.extra)
+        else:
+            #Code block
+            return add_parts(self.path, '', '')
+
+    def not_function_class(self):
+        return 0 == len(self.extra)
+
+#Concrete
+class CodeFileOverviewBranch(Branch): 
     def validate(self):
         assert all(isinstance(c, CodeBlock) for c in self.children.values())
-        
-    def dump(self, indent=""):
-        child_dumps = ''.join([child.dump(indent=indent+'  ') for child in self.children.values()])
-        return f'{indent}{self.extra}\n{child_dumps}'
 
-class Leaf(Summary):
+    def dump(self):
+        child_dumps = '\n'.join([child.dump() for child in self.children.values()])
+        return [f"FILE: {self.path.path}:\n\n{child_dumps}"]
+
+#Concrete
+#class CodeBlockBranch(CodeBranch): 
+#    def validate(self):
+#        assert all(isinstance(c, CodeBlock) for c in self.children.values())
+#
+#    def dump(self):
+#        return dump_code_block_branch_leaf(self)
+
+def add_parts(path, indent, line):
+    parts = '#'.join(path.parts)
+    return f"{line.rstrip()}{indent}#PATH:#{parts}\n"
+    
+   
+
+#Abstract
+class Leaf(Summary): 
     def __init__(self, path, extra):
         isinstance(path, FullPath)
         assert is_hashable(extra)
@@ -332,7 +378,8 @@ class Leaf(Summary):
 
         self._hash = hash((path, extra))
 
-class DirLeaf(Leaf, Dir):
+#Concrete
+class DirLeaf(Leaf): 
     """
     Doesn't include the files in the directory, just the directory path
 
@@ -342,7 +389,8 @@ class DirLeaf(Leaf, Dir):
         assert not self.extra
         return []
 
-class CodeFileLeaf(Leaf, CodeFile):
+#Concrete
+class CodeFileOverviewLeaf(Leaf): 
     """
     Doesn't include any info about the code, just the path
 
@@ -352,23 +400,41 @@ class CodeFileLeaf(Leaf, CodeFile):
         assert not self.extra
         return []
 
-class CodeBlockLeaf(Leaf, CodeBlock):
-    """
-    Doesn't include any nested info about the code block
+#Concrete
+#class CodeBlockLeaf(Leaf): 
+#    """
+#    Doesn't include any nested info about the code block
+#
+#    Extra is the signature of the code block.
+#    """
+#    def dump(self):
+#        return dump_code_block_branch_leaf(self)
 
-    Extra is the signature of the code block.
-    """
-    def dump(self, indent=""):
-        assert 0 < len(self.path.parts)
-        parts = '#'.join(self.path.parts)
-        return f'{indent}{parts}: {self.extra}\n'
+#Abstract
+class CodeLiteral(Leaf): 
+    pass
 
-class CodeLiteral(Leaf, CodeFile):
+#Concrete
+class CodeFileLiteral(CodeLiteral): 
     def dump(self) -> List[str]:
-        return [f'Full code from {self.path.path}:\n{self.extra}']
+        return [f'Start of #{parts}:\n{self.extra}\nEnd of #{parts}\n']
 
+#Concrete
+class CodeBlockLiteral(CodeLiteral): 
+    def dump(self) -> List[str]:
+        lines = self.extra.split('\n')
+        line0 = add_parts(self.path, lines[0])
+        lines = [line0, *lines[1:]]
+        
+        return '\n'.join(lines)
+
+
+
+Dir = (DirBranch, DirLeaf)
+CodeFile = (CodeFileOverviewBranch, CodeFileOverviewLeaf, CodeFileLiteral)
+CodeBlock = (CodeBlockOverview, CodeBlockLiteral)
 
 path = full_path('.')
 #summary = summary({full_path('src'): 10000}, None)
-summary = summary_node(path, {full_path('src/strange_loop_agent'): 100}, None, None)
+summary = summary_node(path, {full_path('src/strange_loop_agent/summary.py'): 100}, None, None)
 print('\n\n\n\n'.join(summary.dump()))

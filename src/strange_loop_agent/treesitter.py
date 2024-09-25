@@ -25,7 +25,7 @@ class TreeSitterModuleSummary:
     code : str
     children : Dict[str, 'TreeSitterCodeSummary']
 
-def function_class_treesitter_summaries(code: str):
+def function_class_treesitter_summaries(all_code: str):
     """
     Uses tree_sitter to extract function and class definitions.
 
@@ -34,7 +34,7 @@ def function_class_treesitter_summaries(code: str):
     Returns a dict mapping name -> TreeSitterCode Summary (just function and class definitions).
     """
     parser = get_parser('python')
-    tree = parser.parse(bytes(code, "utf8"))
+    tree = parser.parse(bytes(all_code, "utf8"))
     query = get_language('python').query("""
     (function_definition
       name: (identifier) @function.name) @function.def
@@ -42,17 +42,20 @@ def function_class_treesitter_summaries(code: str):
       name: (identifier) @class.name) @class.def
     """)
     
-    module_summary = TreeSitterModuleSummary(0, len(code.split('\n')), code, {})
+    all_code_lines = all_code.split('\n')
+
+    module_summary = TreeSitterModuleSummary(0, len(all_code_lines), all_code, {})
     stack = [module_summary]
     
     for capture in query.captures(tree.root_node):
         node, capture_type = capture
         
         if capture_type.endswith('.def'):
-            code = node.text.decode('utf8')
-            signature = code.split('\n')[0].strip()
             start_line = node.start_point[0]
             last_line = node.end_point[0] + 1
+
+            code = '\n'.join(all_code_lines[start_line:last_line])
+            signature = all_code_lines[start_line]
             
             name_node = next(capture for capture in query.captures(node) if capture[1].endswith('.name'))[0]
             base_name = name_node.text.decode('utf8')
@@ -104,13 +107,13 @@ def summarize_code_with_blocks(code: str):
 
         if any(0 < len(line.strip()) for line in lines_between):
             block_num = block_num+1
-            code_between = '\n'.join(lines_between).strip()
+            code_between = '\n'.join(lines_between)
 
             name = f"%code_block_{block_num}"
 
             result[name] = TreeSitterCodeSummary(
                         name=name,
-                        signature=name,
+                        signature='',
                         start_line=start_line,
                         last_line=last_line,
                         code=code_between,
