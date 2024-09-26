@@ -199,17 +199,20 @@ def summary_node(path, sources, flow_down_tokens, prev_summary):
 
             children[child_path.name()] = summary_node(child_path, sources, child_tokens, child_prev_summary)
 
-        return summary_branch(path, children)
+        return summary_branch(path, children, flow_down_tokens, prev_summary)
     else:
         #total_tokens is None and prev_summary is neither CodeLiteralLeaf or SummaryBranch.
         return summary_leaf(path)
 
-def summary_branch(path, children):
+def summary_branch(path, children, flow_down_tokens, prev_summary):
     assert path.is_valid()
 
-    if path.is_valid_dir():
-        #Directory
-        return DirBranch(path, tuple(path.listdir_all()), children)
+    if path.is_valid_dir() and ((flow_down_tokens is not None) or isinstance(prev_summary, DirBranchDisplay)):
+        #Directory, that should be displayed
+        return DirBranchDisplay(path, tuple(path.listdir_all()), children)
+    elif path.is_valid_dir():
+        #Directory that shouldn't be displayed
+        return DirBranchNoDisplay(path, tuple(path.listdir_all()), children)
     elif 0 == len(path.parts):
         #Code file
         return CodeFileOverviewBranch(path, "", children)
@@ -294,21 +297,42 @@ class Branch(Summary):
         pass
 
 #Abstract
-class DirBranch(Branch): 
+def directory_summary_line(path):
+    assert path.is_valid()
+    assert 0 == len(path.parts)
+    if path.is_valid_dir():
+        typ = 'directory'
+    elif path.is_valid_code():
+        typ = 'text'
+    else:
+        typ = 'binary'
+    return f'{path.path.name} ({typ})'
+
+#Abstract
+class DirBranch(Branch):
     def validate(self):
         assert all(isinstance(c, (Dir, CodeFile)) for c in self.children.values())
-        
-    def dump(self) -> List[str]:
-        result = f'Full contents of directory {self.path.path}:\n'
-        result = result + '\n'.join([*self.children.keys()])
 
-        results = [result]
+    def dump_children(self):
+        results = []
         for child in self.children.values():
             child_dump = child.dump()
             assert isinstance(child_dump, list)
             results = results + child_dump
-
         return results
+
+#Concrete
+class DirBranchDisplay(DirBranch): 
+    def dump(self) -> List[str]:
+        result = f'Full contents of directory {self.path.path}:\n'
+        result = result + '\n'.join([directory_summary_line(node.path) for node in self.children.values()])
+        
+        return [result, *self.dump_children()]
+
+#Concrete
+class DirBranchNoDisplay(DirBranch): 
+    def dump(self) -> List[str]:
+        return self.dump_children()
 
 #Abstract
 class CodeBlockOverview(Branch):

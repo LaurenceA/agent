@@ -6,6 +6,9 @@ from typing import Dict, List
 from treesitter import summarize as treesitter_summarize
 
 def codeblock_exists(ts, parts: List[str]):
+    """
+    Takes a treesitter parse of a file, and checks whether a path specified by parts exists.
+    """
     if len(parts) == 0:
         return True
     elif parts[0] in ts.children:
@@ -14,58 +17,14 @@ def codeblock_exists(ts, parts: List[str]):
         return False
 
 def codeblock_index(ts, parts: List[str]):
+    """
+    Takes a treesitter parse of a file, and extracts the path specified by parts.
+    """
     if len(parts) == 0:
         return ts
     else:
         return codeblock_index(ts.children[parts[0]], parts[1:])
-
-def is_utf8(path:Path, sample_size=1024):
-    #Checks for a UTF-8 BOM in the first 3 chars
-    with path.open('rb') as file:
-        if file.read(3) == b'\xef\xbb\xbf':
-            return True
-
-    #Else, get a sample from the file.
-    with path.open('rb') as file:
-        sample = file.read(sample_size)
-
-    # Check for null bytes in the first 1024 bytes
-    if b'\x00' in sample:
-        return False
-
-    # For a utf-8 file, either bytes sequence of 1001, 1002, 1003 or 1004 must be decodable
-    # as utf-8 has sequences up to 4 bytes long
-    decodable = False
-    for offset in range(4):
-        try:
-            sample[:(len(sample)-offset)].decode('utf-8')
-            decodable = True
-            break
-        except UnicodeDecodeError:
-            pass
-    return decodable
-
-#def is_binary(path:Path, sample_size=1024):
-#    """
-#    A heuristic to determine whether a file is binary (and hence should be ignored).
-#    """
-#    print(path)
-#    assert path.is_file()
-#
-#    if path.stat().st_size < 100:
-#        #If file is super short, assume it isn't binary.
-#        return False
-#
-#    with path.open('rb') as file:
-#        sample = file.read(sample_size)
-#    
-#    # Check for null bytes
-#    if b'\x00' in sample:
-#        return True
-#
-#    # Check if the sample contains mostly printable ASCII characters
-#    printable_chars = sum(32 <= byte <= 126 for byte in sample)
-#    return printable_chars / len(sample) < 0.7  # Adjust threshold as needed
+    
 
 
 """
@@ -109,22 +68,81 @@ def iterdir_tracked(path: Path):
     assert is_valid_dir(path)
     return [p for p in iterdir_valid(path) if ('.' != path.name[0])]
 
-#maps path to path to treesitter.  Uses a cache based on the file hash.
+
+"""
+There are several slow operations, including doing a treesitter parse
+of a file, and checking whether it is binary.  We cache these, using
+the file path, modification time and size as a key.
+"""
+
+def file_key(path):
+    return (str(path), path.stat().st_mtime, path.stat().st_size)
+
+#def hash_file(path, algorithm='sha256'):
+#    assert path.is_file()
+#    hash_object = hashlib.new(algorithm)
+#    with path.open('rb') as file:
+#        for chunk in iter(lambda: file.read(4096), b''):
+#            hash_object.update(chunk)
+#    return hash_object.hexdigest()
+
+
+#### Cache doing the treesitter parsing.
 treesitter_cache = {}
 def treesitter_file_summary(path):
     assert is_valid_text_file(path)
 
-    h = hash_file(path)
-    if h not in treesitter_cache:
-        treesitter_cache[h] = treesitter_summarize(path)
-    return treesitter_cache[h]
+    key = file_key(path)
+    if key not in treesitter_cache:
+        treesitter_cache[key] = treesitter_summarize(path)
+    return treesitter_cache[key]
 
-def hash_file(path, algorithm='sha256'):
-    hash_object = hashlib.new(algorithm)
+
+#### Cache doing the binary vs not binary judgement, as that requires reading whole file.
+def _is_utf8(path:Path):
+    #Checks for a UTF-8 BOM in the first 3 chars
     with path.open('rb') as file:
-        for chunk in iter(lambda: file.read(4096), b''):
-            hash_object.update(chunk)
-    return hash_object.hexdigest()
+        if file.read(3) == b'\xef\xbb\xbf':
+            return True
+
+    #Else, get a sample of 1024 bytes from the file.
+    with path.open('rb') as file:
+        sample = file.read(1024)
+
+    # Check for null bytes, which don't appear in utf-8
+    if b'\x00' in sample:
+        return False
+
+    # For a utf-8 file, either bytes sequence of 1001, 1002, 1003 or 1004 must be decodable
+    # as utf-8 has sequences up to 4 bytes long
+    sample_decodable = False
+    for offset in range(4):
+        try:
+            sample[:(len(sample)-offset)].decode('utf-8')
+            sample_decodable = True
+            break
+        except UnicodeDecodeError:
+            pass
+
+    #Try decoding full file.
+    with path.open('rb') as file:
+        full_file = file.read()
+
+    try:
+        sample.decode('utf-8')
+        return True
+    except UnicodeDecodeError:
+        return False
+
+cache_is_utf8 = {}
+def is_utf8(path):
+    assert exists_accessible(path) and path.is_file()
+
+    key = file_key(path)
+    if key not in treesitter_cache:
+        cache_is_utf8[key] = _is_utf8(path)
+    return cache_is_utf8[key]
+
 
 
 class FullPath():
@@ -209,7 +227,7 @@ class FullPath():
         if self.is_valid_dir():
             return sum(FullPath(p).getsize() for p in iterdir_tracked(self.path))
         else: 
-            return len(self.read().encode('utf-8'))
+            return len(self.read())
 
     def __hash__(self):
         return hash((self.path, self.parts))

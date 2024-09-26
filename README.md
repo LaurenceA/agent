@@ -62,26 +62,26 @@ This will install the package in editable mode, allowing you to make changes to 
 
 ## TODOs:
 
-* Summaries: take sources and derive the "roots" (i.e. don't start from the file directory root).
+* Summary from root directory ... but then don't want to print everything super deep parts of the directory tree.
 * Summaries diffs:
+  - diff takes other.
   - Implement diff_dump(self, other) methods.
   - Crappy initial approach: just repeat whenever different.
     - files in a folder
     - code in a file
     - code literal
-* Summaries: make sure that writing files interacts correctly with sources
+* Diff improvements: what about if something is renamed? 
+  - Handle renaming, but only within a level in the heirarchy (e.g. files in a folder, functions in a file, methods in a class etc.)
+* Summaries: make sure that writing files interacts correctly with sources.
 * Summaries: Get rid of .encode, and just use length of the string.
 * Summaries: Use a path to index into summary.
-* Summaries: sources for README?
+* Summaries: Special treatment for README.
 * Summaries: Optional GPT-4o-mini summaries.
 * Summaries: Anything other than function / class definitions (e.g. Haskell typedef)?
-* Summaries: Move formatting of treesitter code in dump()
-* Summaries: ... e.g. under class when there's methods we haven't include.
-* System prompt describing path/to/file#class_name.
-
-
+* Summaries: .gitignore format for paths to ignore.
+* Summaries: ordering matters: 
+* System prompt describing path format (i.e. path/to/file#class_name#function_name)
 * Sources: Tool to add new sources.
-* Sources: Add a source in the starting directory.
 
 * How to cross-reference context vs line numbers in error messages?
   - The problem is that error messages come with line numbers in the underlying files.
