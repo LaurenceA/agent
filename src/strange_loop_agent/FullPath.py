@@ -3,29 +3,7 @@ import hashlib
 from pathlib import Path
 from typing import Dict, List
 
-from treesitter import summarize as treesitter_summarize
-
-def codeblock_exists(ts, parts: List[str]):
-    """
-    Takes a treesitter parse of a file, and checks whether a path specified by parts exists.
-    """
-    if len(parts) == 0:
-        return True
-    elif parts[0] in ts.children:
-        return codeblock_exists(ts.children[parts[0]], parts[1:])
-    else:
-        return False
-
-def codeblock_index(ts, parts: List[str]):
-    """
-    Takes a treesitter parse of a file, and extracts the path specified by parts.
-    """
-    if len(parts) == 0:
-        return ts
-    else:
-        return codeblock_index(ts.children[parts[0]], parts[1:])
-    
-
+from treesitter import treesitter_ast, TreeSitterAST
 
 """
 Valid Path must exist, and we must have read access.
@@ -38,7 +16,7 @@ def exists_accessible(path: Path):
     assert isinstance(path, Path)
     return os.access(path, os.R_OK) and path.exists()
 
-def is_valid_text_file(path: Path):
+def is_valid_code(path: Path):
     assert isinstance(path, Path)
     return exists_accessible(path) and path.is_file() and is_utf8(path)
 
@@ -48,7 +26,7 @@ def is_valid_dir(path: Path):
 
 def is_valid_path(path: Path):
     assert isinstance(path, Path)
-    return is_valid_dir(path) or is_valid_text_file(path)
+    return is_valid_dir(path) or is_valid_code(path)
 
 def iterdir_all(path):
     assert is_valid_dir(path)
@@ -89,12 +67,12 @@ def file_key(path):
 
 #### Cache doing the treesitter parsing.
 treesitter_cache = {}
-def treesitter_file_summary(path):
-    assert is_valid_text_file(path)
+def treesitter_file_ast(path):
+    assert is_valid_code(path)
 
     key = file_key(path)
     if key not in treesitter_cache:
-        treesitter_cache[key] = treesitter_summarize(path)
+        treesitter_cache[key] = treesitter_ast(path)
     return treesitter_cache[key]
 
 
@@ -157,7 +135,7 @@ class FullPath():
         return is_valid_dir(self.path) and (len(self.parts) == 0)
 
     def is_valid_code(self):
-        if not is_valid_text_file(self.path):
+        if not is_valid_code(self.path):
             #Not a valid code file.
             return False
         elif len(self.parts) == 0:
@@ -165,7 +143,7 @@ class FullPath():
             return True
         else:
             #We are in a valid code file, and there are parts
-            ts = treesitter_file_summary(self.path)
+            ts = treesitter_file_ast(self.path)
             return codeblock_exists(ts, self.parts)
 
     def is_valid(self):
@@ -177,9 +155,8 @@ class FullPath():
         else:
             return self.path.name
 
-    def treesitter_summary(self):
-        ts = treesitter_file_summary(self.path)
-        return codeblock_index(ts, self.parts)
+    def treesitter_ast(self):
+        return treesitter_file_ast(self.path).index(self.parts)
 
     def is_in(self, directory):
         """
@@ -199,15 +176,15 @@ class FullPath():
         if len(self.parts) == 0:
             return ""
         else:
-            return self.treesitter_summary().signature
+            return self.treesitter_ast().signature
 
     def read_path(self):
-        assert is_valid_text_file(self.path)
+        assert is_valid_code(self.path)
         with self.path.open() as f:
            return f.read()
 
     def read(self):
-        return self.treesitter_summary().code
+        return self.treesitter_ast().code
 
     def iter_tracked(self):
         """
@@ -218,7 +195,7 @@ class FullPath():
         if self.is_valid_dir():
             return [FullPath(p) for p in iterdir_tracked(self.path)]
         else:
-            ts = self.treesitter_summary()
+            ts = self.treesitter_ast()
             return [self.append_part(part) for part in ts.children.keys()]
 
     def getsize(self):
@@ -247,11 +224,14 @@ class FullPath():
         assert self.is_valid_dir()
         return [p.name for p in iterdir_all(self.path)]
 
-    def __repr__(self):
+    def __str__(self):
         parts = '#'.join(self.parts)
         if 0 < len(self.parts):
             parts = '#' + parts
-        return f"FullPath({self.path}{parts})"
+        return f"{self.path}{parts}"
+
+    def __repr__(self):
+        return f"FullPath({self.to_string()})"
 
 
 def full_path(path):

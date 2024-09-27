@@ -9,23 +9,64 @@ from typing import Dict, List
 from dataclasses import dataclass, field
 from pathlib import Path
 
-@dataclass
-class TreeSitterCodeSummary:
-    name : str
-    signature : str
-    start_line : int
-    last_line : int
-    code : str
-    children : Dict[str, 'TreeSitterCodeSummary']
+class TreeSitterAST:
+    def __init__(self, signature, start_line, end_line, code, children):
+        assert isinstance(signature, (str, type(None)))
+        assert isinstance(start_line, int)
+        assert isinstance(end_line, int)
+        assert isinstance(code, str)
+        assert isinstance(children, dict)
 
-@dataclass
-class TreeSitterModuleSummary:
-    start_line : int
-    last_line : int
-    code : str
-    children : Dict[str, 'TreeSitterCodeSummary']
+        self.signature = signature
+        self.start_line = start_line
+        self.end_line = end_line
+        self.code = code
+        self.children = children
 
-def function_class_treesitter_summaries(all_code: str):
+    def summarize(self, depth, parts=()):
+        if self.signature is None:
+            #Signature is only None for a file.
+            assert 0 == len(parts)
+            assert 0 < depth
+            result = []
+        elif self.signature == '':
+            #Signature should only be empty string for a code block, which is one layer down from the top.
+            assert 1 == len(parts)
+            result = [f'#PATH#{parts[0]}']
+        else:
+            #Function or class
+            joined_parts = '#'.join(parts)
+            result = [f'{self.signature}  #PATH#{joined_parts}']
+
+        if 0 < depth:
+            result = [*result, *[v.summarize(depth-1, parts=(*parts, k)) for (k,v) in self.children.items()]]
+
+        #Empty line between definitions at the top-level.
+        sep = '\n\n' if self.signature is None else '\n'
+        return sep.join(result)
+
+    def exists(self, parts: List[str]):
+        """
+        and checks whether a path specified by parts exists
+        """
+        if len(parts) == 0:
+            return True
+        elif parts[0] in self.children:
+            return self.children[parts[0]].codeblock_exists(parts[1:])
+        else:
+            return False
+
+    def index(self, parts: List[str]):
+        """
+        Takes a treesitter parse of a file, and extracts the path specified by parts.
+        """
+        if len(parts) == 0:
+            return self
+        else:
+            return self.children[parts[0]].codeblock_index(parts[1:])
+    
+
+def treesitter_ast_just_function_class(all_code: str):
     """
     Uses tree_sitter to extract function and class definitions.
 
@@ -44,7 +85,7 @@ def function_class_treesitter_summaries(all_code: str):
     
     all_code_lines = all_code.split('\n')
 
-    module_summary = TreeSitterModuleSummary(0, len(all_code_lines), all_code, {})
+    module_summary = TreeSitterAST(None, 0, len(all_code_lines), all_code, {})
     stack = [module_summary]
     
     for capture in query.captures(tree.root_node):
@@ -52,9 +93,9 @@ def function_class_treesitter_summaries(all_code: str):
         
         if capture_type.endswith('.def'):
             start_line = node.start_point[0]
-            last_line = node.end_point[0] + 1
+            end_line = node.end_point[0] + 1
 
-            code = '\n'.join(all_code_lines[start_line:last_line])
+            code = '\n'.join(all_code_lines[start_line:end_line])
             signature = all_code_lines[start_line]
             
             name_node = next(capture for capture in query.captures(node) if capture[1].endswith('.name'))[0]
@@ -67,9 +108,9 @@ def function_class_treesitter_summaries(all_code: str):
                 i += 1
                 name = base_name + str(i)
             
-            new_summary = TreeSitterCodeSummary(name, signature, start_line, last_line, code, {})
+            new_summary = TreeSitterAST(signature, start_line, end_line, code, {})
             
-            while start_line > stack[-1].last_line:
+            while start_line > stack[-1].end_line:
                 stack.pop()
             
             stack[-1].children[name] = new_summary
@@ -77,33 +118,33 @@ def function_class_treesitter_summaries(all_code: str):
     
     return module_summary
 
-def summarize_code_with_blocks(code: str):
+def treesitter_ast_with_other_code_blocks(code: str):
     """
     Adds an non-empty code blocks.
 
     Returns a dict mapping name -> TreeSitterCode Summary (also with blocks)
     """
-    summaries = function_class_treesitter_summaries(code).children
+    summaries = treesitter_ast_just_function_class(code).children
     summaries_list = [*summaries.items()]
     lines = code.split('\n')
 
-    # Collect the start and last line numbers of every block, where
+    # Collect the start and end line numbers of every block, where
     # there is a block between every top-level function/class definition.
     block_start_end = []
     end_line_prev_block = 0
     for name, func_class in summaries.items():
         start_line_next_block = func_class.start_line
         block_start_end.append((end_line_prev_block, start_line_next_block))
-        end_line_prev_block = func_class.last_line
+        end_line_prev_block = func_class.end_line
     block_start_end.append((end_line_prev_block, len(lines)))
 
     # Strip any empty lines.
     block_num = 0
     result = {}
     for i in range(len(block_start_end)):
-        start_line, last_line = block_start_end[i]
+        start_line, end_line = block_start_end[i]
 
-        lines_between = lines[start_line: last_line]
+        lines_between = lines[start_line: end_line]
 
         if any(0 < len(line.strip()) for line in lines_between):
             block_num = block_num+1
@@ -111,11 +152,10 @@ def summarize_code_with_blocks(code: str):
 
             name = f"%code_block_{block_num}"
 
-            result[name] = TreeSitterCodeSummary(
-                        name=name,
+            result[name] = TreeSitterAST(
                         signature='',
                         start_line=start_line,
-                        last_line=last_line,
+                        end_line=end_line,
                         code=code_between,
                         children={}
                     )
@@ -124,25 +164,15 @@ def summarize_code_with_blocks(code: str):
             name, summary = summaries_list[i]
             result[name] = summary
 
-    return TreeSitterModuleSummary(0, len(code.split('\n')), code, result)
+    return TreeSitterAST(None, 0, len(code.split('\n')), code, result)
 
-# Cache that maps file hash to the summary.
-# string (hash) -> list[TreeSitterCodeSummary]
-#cache = {}
-#
-#def summarize_code_file(path):
-#    key = hash_file(path)
-#    if key not in cache:
-#        cache[key] = summarize_code_with_blocks(path.read())
-#    return cache[key]
-
-def summarize(path):
+def treesitter_ast(path):
     assert isinstance(path, Path)
     with path.open('r') as file:
         code = file.read()
-    return summarize_code_with_blocks(code)
-    
-
+    return treesitter_ast_with_other_code_blocks(code)
+#    
+#
 ## Example usage
 #code = """import xyx
 #
@@ -188,12 +218,6 @@ def summarize(path):
 #        print(f'{i}: {line}')
 #  
 #
-#summaries = summarize_code_with_blocks(code)
+#print(summarize_code_with_blocks(code).summarize(depth=3))
 #
-#def print_summaries(summaries, indent=""):
-#    for summary in summaries.children.values():
-#        print(f"{indent}Lines {summary.start_line}-{summary.last_line}: {summary.name}: {summary.signature}")
-#        print_summaries(summary, indent + "  ")
-#
-#print("Module Structure:")
 #print_summaries(summaries)
