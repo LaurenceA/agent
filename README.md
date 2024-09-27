@@ -61,40 +61,10 @@ This will install the package in editable mode, allowing you to make changes to 
   - Does mean that you can't write to previously untracked files.
 
 ## Summaries approach N
-* Key operation is adding a new source, which gives rise to one or more new summary blocks.
-* A summary block corresponds to a directory, a code file, or a part of a code file (like a class).
-* A summary block prints a string.  These strings can be diff'ed if something changes.
-* Summary blocks are represented in a dict, mapping paths to the summary.
-* New summary blocks are created by requesting "Use 1000 tokens to tell me about this path".
-  - Asking for a directory recurses through directories
-  - Asking for a codefile / codeblock just gives a single summary block.
-* What do they print?
-  - Directories just print the file / subdirectory names.
-  - Codefiles/blocks either print a summary of the code to some depth, or the full code.
-* What happens when we update a pre-existing summary block? 
-  - We diff the summary text.  
-  - For code files, this requires that we record the depth, but not the number of tokens.
-* What happens when a new summary block is added? Obvious.
-* What happens when a summary block is deleted (i.e. its path no longer exists)?  We print a message saying that.
-* What happens when a summary block is moved (i.e. its content still exists, but at a different path)?  Hard.  We can't always know where it moved to.
-* Don't record tokens used previously.
-* There is a function, taking a path (and, for code, a depth), and returning a summary block.
-  - If path no longer correponds 
-* Datastructures:
-  - new_sources: Dict[FullPath, tokens:int].
-  - prev_summaries: Dict[FullPath, (typ, depth, str)], type of block (e.g. directory, depth (only relevant for code) and string representation).
-  - diff: List[str], string represents a message about diffs, deletions etc.
-* Functions:
-  - typ(full_path, depth) (returns the type, i.e. code vs directory).
-  - str(full_path, depth) (returns the actual string representation).
-* Algorithm is:
-  - There is a list of diffs, which starts empty.
-  - For every new source, compute the new nodes (recursing through directories).  Add them all to the list of diffs + the record of summaries.
-  - See whether any of the old nodes have changed (i.e. text changed), deleted (i.e. path no longer exists), or changed type (i.e. weirdly went from a directory to a code file).  Modify the prev_summaries + add 
 
 ## TODOs:
+* Summaries: be careful not to make a new code summary for e.g. a function, when the full code for the file is already available.
 * Summaries: make sure that writing files interacts correctly with sources.
-* Summaries: Use a path to index into summary.
 * Summaries: Special treatment for README.
 * Summaries: Optional GPT-4o-mini summaries.
 * Summaries: Anything other than function / class definitions (e.g. Haskell typedef)?

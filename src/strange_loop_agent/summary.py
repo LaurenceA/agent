@@ -1,3 +1,22 @@
+"""
+* Key operation is adding a new source, which gives rise to one or more new summary blocks.
+* A summary block corresponds to a directory, a code file, or a part of a code file (like a class).
+* A summary block prints a string.  These strings can be diff'ed if something changes.
+* Summary blocks are represented in a dict, mapping paths to the summary.
+* New summary blocks are created by requesting "Use 1000 tokens to tell me about this path".
+  - Asking for a directory recurses through directories
+  - Asking for a codefile / codeblock just gives a single summary block.
+* What do they print?
+  - Directories just print the file / subdirectory names.
+  - Codefiles/blocks either print a summary of the code to some depth, or the full code.
+* What happens when we update a pre-existing summary block? 
+  - We diff the summary text.  
+  - For code files, this requires that we record the depth, but not the number of tokens.
+* What happens when a new summary block is added? Obvious.
+* What happens when a summary block is deleted (i.e. its path no longer exists)?  We print a message saying that.
+* What happens when a summary block is moved (i.e. its content still exists, but at a different path)?  Hard.  We can't always know where it moved to.
+"""
+
 import os
 from FullPath import FullPath, full_path, is_valid_code
 from treesitter import treesitter_ast

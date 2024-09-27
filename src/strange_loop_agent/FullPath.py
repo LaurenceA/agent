@@ -44,8 +44,14 @@ def iterdir_tracked(path: Path):
     Lists all directories and non-binary files that are tracked (i.e. valid, and non hidden (i.e. with a . at the start).
     """
     assert is_valid_dir(path)
-    return [p for p in iterdir_valid(path) if ('.' != path.name[0])]
+    return [p for p in iterdir_valid(path) if tracked(path.name)]
 
+def tracked(filename):
+    excluded_patterns = [r'^\.', r'^\.']
+    for pattern in excluded_patterns:
+        if re.search(pattern, string):
+            return False
+    return True
 
 """
 There are several slow operations, including doing a treesitter parse
@@ -231,7 +237,7 @@ class FullPath():
         return f"{self.path}{parts}"
 
     def __repr__(self):
-        return f"FullPath({self.to_string()})"
+        return f"FullPath({self.__str__()})"
 
 
 def full_path(path):
