@@ -280,8 +280,8 @@ class Branch(Summary):
     def __init__(self, path, extra, children):
         if children is None:
             children = {}
-        isinstance(path, FullPath)
-        isinstance(children, dict)
+        assert isinstance(path, FullPath)
+        assert isinstance(children, dict)
         assert is_hashable(extra)
 
         self.path = path
@@ -376,7 +376,7 @@ def add_parts(path, indent, line):
 #Abstract
 class Leaf(Summary): 
     def __init__(self, path, extra):
-        isinstance(path, FullPath)
+        assert isinstance(path, FullPath)
         assert is_hashable(extra)
 
         self.path = path
