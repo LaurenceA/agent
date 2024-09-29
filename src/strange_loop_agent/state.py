@@ -33,7 +33,6 @@ config = {**default_config, **repo_config}
 @dataclass(frozen=True)
 class State:
     system_message: str
-    project_dir: str                # Must be imported as part of the first call to main if this is to work.
     tracked_files: dict             # Dict mapping tracked file names to current hashes.
     max_tokens: int                 # Max tokens for any completion
     hash_dir: str                   # Directory with ...
@@ -49,9 +48,6 @@ class State:
     def append_block(self, role, block):
         messages = self.messages.append_block(role, block)
         return replace(self, messages=messages)
-
-    def abs_path(self, rel_path):
-        return os.path.join(self.project_dir, rel_path)
 
     def append_state_to_messages(self):
         """
@@ -151,7 +147,6 @@ def initialize_state():
 
     return State(
         system_message = system_message,
-        project_dir = os.getcwd(),
         max_tokens = config["max_tokens"],
         hash_dir = hash_dir,
         tracked_files = {},
