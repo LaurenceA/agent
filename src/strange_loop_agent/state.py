@@ -2,6 +2,7 @@ import os
 import json
 import subprocess
 import shutil
+from pathlib import Path
 
 from dataclasses import dataclass, replace
 from typing import Optional
@@ -41,9 +42,6 @@ class State:
     messages: Messages
     console_log: list
 
-    def track_file(self, path):
-        return replace(state, tracked_files=self.tracked_files.add(path))
-
     def append_text(self, role, text):
         messages = self.messages.append_text(role, text)
         return replace(self, messages=messages)
@@ -60,32 +58,23 @@ class State:
         tracked_file_string = '\n'.join([*self.tracked_files.keys()])
 
         result = f"Tracked files:\n{tracked_file_string}"
-
-        #append_text_to_messages('user', '
-        #for file_path in state.context_files:
-        #    abs_path = os.path.join(state.project_dir, file_path)
-        #    try:
-        #        with open(abs_path, 'r') as file:
-        #            file_content = file.read()
-        #        result.append(f"File path: {file_path}\nFile contents:\n{file_content}")
-        #    except Exception as e:
-        #        result.append(f"File path: {file_path}\nError loading file:\n{e}")
-        #result = '\n\n\n\n'.join(result)
-        #if state.file_for_writing is not None:
-        #    result = result + f'You have {state.file_for_writing} open.  Anything you say will go straight to this file.  So only say code!  You must say the full code file.  You cannot e.g. say that the rest of the code is the same.'
         return self.messages.append_text('user', result)
 
     def assistant_api_call(self):
         self.messages.assert_ready_for_assistant()
         return self.strong_model.response(self.system_message, self.append_state_to_messages(), tools=tools_internal)
 
-    def track_file_write(self, paths):
-        """
-        Should be called after you write one or more files.
-        """
-        assert isinstance(paths, list)
-        list_tracked_files = set(self.tracked_files.keys()).intersection(paths)
-        tracked_files = update_hashes(self.hash_dir, tracked_file_list)
+    def track_file(self, path):
+        assert isinstance(path, Path)
+        tracked_files = {**self.tracked_files}
+
+        _hash = hash_file(path)
+        hash_path = os.path.join(self.hash_dir, _hash)
+            
+        if not os.path.exists(hash_path):
+            shutil.copy(path, hash_path)
+        tracked_files[path] = _hash
+
         return replace(self, tracked_files=tracked_files)
 
     def update_hashes(self):
@@ -139,21 +128,6 @@ class State:
                 return self.confirm_proceed()
 
 
-
-def update_hashes(hash_dir, tracked_file_list):
-    """
-    Updates the hashed files.  
-    """
-    tracked_files = {}
-    for file_path in tracked_file_list:
-        _hash = hash_file(file_path)
-        hash_path = os.path.join(hash_dir, _hash)
-        
-        if not os.path.exists(hash_path):
-            shutil.copy(file_path, hash_path)
-        tracked_files[file_path] = _hash
-    return tracked_files
-
 def initialize_state():
     #Set up tracked files
     git_ls_files = subprocess.run('git ls-files', shell=True, capture_output=True, text=True)
@@ -165,25 +139,21 @@ def initialize_state():
         raise NotImplementedError()
 
     #### Set up hash files
-    hash_dir = config['hash_dir']
+    hash_dir = Path(config['hash_dir'])
     #Make a hash directory if it doesn't exist
     if not os.path.exists(hash_dir):
         os.makedirs(hash_dir, exist_ok=False)
 
-    #Hash all tracked files if they don't already exist.
-    tracked_files = update_hashes(hash_dir, tracked_file_list)
-
     #Remove all hashed files that aren't referenced
     for _hash in os.listdir(hash_dir):
-        if _hash not in tracked_files:
-            os.remove(os.path.join(hash_dir, _hash))
+        os.remove(os.path.join(hash_dir, _hash))
 
     return State(
         system_message = system_message,
         project_dir = os.getcwd(),
         max_tokens = config["max_tokens"],
         hash_dir = hash_dir,
-        tracked_files = tracked_files,
+        tracked_files = {},
         weak_model = Model(openai_client, 'gpt-4o-mini'),
         #strong_model = Model(anthropic_client, 'claude-3-5-sonnet-20240620')
         strong_model = Model(anthropic_client, 'claude-3-haiku-20240307'),

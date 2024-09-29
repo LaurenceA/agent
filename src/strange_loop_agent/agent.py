@@ -41,10 +41,11 @@ def update_state_assistant(state):
                 if user_refused_permission:
                     errors.append(f"User refused permission to write {path}")
                 else:
+                    state = state.track_file(path.path)
+                    path.write(proposed_text)
+                    state = state.track_file(path.path)
                     try:
-                        with open(state.abs_path(path), 'w') as file:
-                            file.write(proposed_text)
-                        state = state.track_file(path)
+                        path.write(proposed_text)
                     except Exception as e:
                         errors.append(f"An error occured writing {path}: {e}")
 

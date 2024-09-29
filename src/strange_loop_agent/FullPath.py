@@ -178,13 +178,27 @@ class FullPath():
         else:
             return self.treesitter_ast().signature
 
-    def read_path(self):
-        assert is_valid_code(self.path)
-        with self.path.open() as f:
-           return f.read()
-
     def read(self):
         return self.treesitter_ast().code
+
+    def write(self, text):
+        assert self.is_valid_code() or ((len(self.parts) == 0) and (not self.path.exists()))
+
+        if not self.is_valid_code():
+            assert len(self.parts) == 0
+
+            with self.path.open('w') as file:
+               file.write(text)
+        else:
+            ts = self.treesitter_ast()
+            
+            with self.path.open('r') as file:
+                file_contents = file.readlines()
+
+            file_contents[ts.start_line: ts.end_line] = ts.code.split('\n')
+
+            with self.path.open('w') as file:
+               file.write('\n'.join(file_contents))
 
     def iter_tracked(self):
         """
