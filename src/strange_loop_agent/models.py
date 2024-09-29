@@ -69,7 +69,6 @@ class AnthropicClient(Client):
             if 3 <= len(dumped_messages):
                 assert dumped_messages[-3]['role'] == 'user'
                 dumped_messages[-3]['content'][0]['cache_control'] = {"type": "ephemeral"}
-        print(dumped_messages)
 
         funcs = {
             True: _anthropic_client.beta.prompt_caching.messages.create,

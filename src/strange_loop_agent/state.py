@@ -11,6 +11,7 @@ from .models import Model, openai_client, anthropic_client
 from .tools import tools_internal
 from .utils import hash_file
 from .system_message import system_message
+from .summary import SummaryDict
 
 from .messages import Messages
 from .formatting import color
@@ -39,6 +40,7 @@ class State:
     weak_model: Model               # Weak model
     strong_model: Model             # Strong model
     messages: Messages
+    summaries: SummaryDict
     console_log: list
 
     def append_text(self, role, text):
@@ -151,8 +153,9 @@ def initialize_state():
         hash_dir = hash_dir,
         tracked_files = {},
         weak_model = Model(openai_client, 'gpt-4o-mini'),
-        #strong_model = Model(anthropic_client, 'claude-3-5-sonnet-20240620')
-        strong_model = Model(anthropic_client, 'claude-3-haiku-20240307'),
+        strong_model = Model(anthropic_client, 'claude-3-5-sonnet-20240620'),
+        #strong_model = Model(anthropic_client, 'claude-3-haiku-20240307'),
         messages = Messages([]),
+        summaries = {},
         console_log = [],
     )

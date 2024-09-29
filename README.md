@@ -69,6 +69,10 @@ This will install the package in editable mode, allowing you to make changes to 
 * better exceptions, especially when we know the exceptions will be caught and printed.
 * cache system message.
 
+* Undo:
+  - actually implement the command!
+  - tree-structured undo (but how to explore the tree?)
+
 * Summaries: if you ask to explore e.g. a long function or script with no heirarchical structure, then standard explore might not print any information.
 * Summaries: be careful not to make a new code summary for e.g. a function, when the full code for the file is already available.
 * Summaries: make sure that writing files interacts correctly with sources.
@@ -88,8 +92,5 @@ This will install the package in editable mode, allowing you to make changes to 
     - Translate these filenames + linenumbers into relative paths (e.g. path to a function + line number within the function).
     - Put these back into the error message.
 
-* Undo files:
-  - Only undo files written by us!
-  - Allows us to get rid of the awkward "project" abstraction.
 
 * Add sources tool.
