@@ -67,6 +67,7 @@ This will install the package in editable mode, allowing you to make changes to 
 ## TODOs:
 * write a tool for summaries
 * better exceptions, especially when we know the exceptions will be caught and printed.
+* cache system message.
 
 * Summaries: if you ask to explore e.g. a long function or script with no heirarchical structure, then standard explore might not print any information.
 * Summaries: be careful not to make a new code summary for e.g. a function, when the full code for the file is already available.

@@ -74,7 +74,6 @@ def update_state_assistant(state):
             user_refused_permission = False
             if not all_required_args_present:
                 result = f"Tool {function_name} requires arguments {required_args}, but given {[*args.keys()]}"
-                print(output_messages)
             else:
                 #Call the report function.  It should print directly, and not return anything.
                 state = state.print_system(tools_internal[function_name]['report_function'](**args))
@@ -88,7 +87,7 @@ def update_state_assistant(state):
 
                     #Running the function shouldn't change messages.
                     prev_messages = state.messages
-                    result = function(**args)
+                    state, result = function(state, **args)
                     assert state.messages is prev_messages
 
             tool_result_block = ToolResultBlock(block.id, result)
