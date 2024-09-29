@@ -6,8 +6,8 @@ import readline #Just importing readline enables nicer features for the builtin 
 from .diff import diff
 from .tools import tools_internal
 from .state import initialize_state
-from .summarize import summarize
-from .parse_file_writes import parse_file_writes
+#from .summarize import summarize
+from .parse_file_writes import parse_writes
 
 from .messages import TextBlock, ToolUseBlock, ToolResultBlock
 
@@ -40,7 +40,7 @@ def update_state_assistant(state):
             #    else:
             #        print_code(proposed_text)
 
-            parsed_file_writes = parse_file_writes(block.text)
+            parsed_file_writes = parse_writes(block.text)
             if 0 < len(parsed_file_writes):
                 errors = []
                 state, user_gave_permission = state.confirm_proceed()

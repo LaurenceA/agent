@@ -1,3 +1,4 @@
+import re
 import os
 import hashlib
 from pathlib import Path
@@ -49,7 +50,7 @@ def iterdir_tracked(path: Path):
 def tracked(filename):
     excluded_patterns = [r'^\.', r'^\.']
     for pattern in excluded_patterns:
-        if re.search(pattern, string):
+        if re.search(pattern, filename):
             return False
     return True
 
@@ -62,13 +63,6 @@ the file path, modification time and size as a key.
 def file_key(path):
     return (str(path), path.stat().st_mtime, path.stat().st_size)
 
-#def hash_file(path, algorithm='sha256'):
-#    assert path.is_file()
-#    hash_object = hashlib.new(algorithm)
-#    with path.open('rb') as file:
-#        for chunk in iter(lambda: file.read(4096), b''):
-#            hash_object.update(chunk)
-#    return hash_object.hexdigest()
 
 
 #### Cache doing the treesitter parsing.

@@ -8,8 +8,8 @@ from typing import Optional
 
 from .models import Model, openai_client, anthropic_client
 from .tools import tools_internal
-from .parse_file_writes import file_open_delimiter, file_close_delimiter, parse_file_writes
 from .utils import hash_file
+from .system_message import system_message
 
 from .messages import Messages
 from .formatting import color
@@ -26,36 +26,6 @@ else:
     repo_config = {}
 
 config = {**default_config, **repo_config}
-
-def call_terminal(command):
-    stdout = subprocess.run(command, shell=True, capture_output=True, text=True).stdout
-    assert 0 < len(stdout)
-    return stdout.strip()
-
-system_message = f"""You are a part of an agentic system for programming.
-
-Try to be brief when responding to user requests.  Tokens are expensive!
-
-Don't ask for permission.  Just call the tools.  The agent wrapper handles asking the user for permission.
-
-Try to minimize the number of files you have in the context.  Discard any files from the context you don't need.
-
-When you want to write to a file, use the following format:
-{file_open_delimiter}path/to/file
-<file contents>{file_close_delimiter}
-These files are automatically written successfully.
-
-A brief description of the system you are running on:
-OS name: {call_terminal('uname -s')}
-OS version: {call_terminal('uname -r')}
-Architecture: {call_terminal('uname -m')}
-System name: {call_terminal('uname -n')}
-
-The project root directory is:
-{os.getcwd()}
-Don't navigate, or modify anything outside, this directory.
-
-"""
 
 
 #### App state:

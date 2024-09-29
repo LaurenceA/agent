@@ -25,15 +25,19 @@ from typing import Dict, List, Tuple
 #### Classes for summaries
 class Summary():
     def tokens(self):
-        return (len(self.new_header) + len(self.contents)) / 4
+        return len(self.contents) / 4
 
 class DirSummary(Summary):
     def __init__(self, path):
         assert path.is_valid_dir()
+        self.path = path
         self.contents = '\n'.join(path.listdir_all())
 
-        self.new_header = f'Full contents of directory {path}:\n'
-        self.update_header = f'Changes to contents of directory {path}:\n'
+    def new_message(self):
+        return f'<directory_contents, path={self.path}>\n{self.contents}\n</directory>'
+
+    def update_message(self, prev_summary):
+        return f'<directory_contents, path={self.path}>\n{self.contents}\n</directory>'
 
     def update(self):
         return SummaryDir(self.path)
@@ -43,6 +47,7 @@ class DirSummary(Summary):
 class CodeSummary(Summary):
     def __init__(self, path, depth):
         assert path.is_valid_code()
+        self.path = path
         self.depth = depth
 
         self.treesitter_ast = path.treesitter_ast()
@@ -51,8 +56,11 @@ class CodeSummary(Summary):
         else:
             self.contents = self.treesitter_ast.summarize(depth)
 
-        self.new_header = f'Code at {path}:\n'
-        self.update_header = f'Changes to code at {path}:\n'
+    def new_message(self):
+        return f'<file_contents, path={self.path}>\n{self.contents}\n</file_contents>'
+
+    def update_message(self, prev_summary):
+        return f'<file_contents, path={self.path}>\n{self.contents}\n</file_contents>'
 
     def update(self):
         return SummaryCode(self.path, self.depth)
@@ -168,7 +176,7 @@ def update_summaries(summaries: SummaryDict, messages: Messages) -> (SummaryDict
         updated_summary = summary.update()
         if summary.contents != update_summary.contents:
             messages[full_path] = updated_summary.update_header + updated_summary.content
-        updated_summaries[full_path] = updated_summary
+        updated_summaries[full_path] = updated_summary.update_message(summary)
 
     return (updated_summaries, messages)
 
@@ -190,7 +198,7 @@ def add_summaries(summaries:SummaryDict, new_summaries:SummaryDict, messages:Mes
 
         if insert:
             updated_summaries[full_path] = new_summary
-            messages[full_path] = new_summary.new_header + new_summary.contents
+            messages[full_path] = new_summary.new_message()
     
     return (updated_summaries, messages)
 
@@ -202,5 +210,5 @@ def update_summaries_from_token_sources(prev_summaries:SummaryDict, sources: Lis
     return update_summaries_from_new_summaries(prev_summaries, new_summaries)
 
 
-fp = full_path('src/strange_loop_agent/summary.py')
+fp = full_path('src/')
 ns, ms = update_summaries_from_token_sources({}, [(fp, 10000)])
