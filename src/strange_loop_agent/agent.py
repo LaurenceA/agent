@@ -31,66 +31,27 @@ def update_state_assistant(state):
             state = state.append_text("assistant", block.text)
             state = state.print_assistant(block.text)
 
-            #for path, proposed_text in parse_file_writes(block.text):
-            #    abs_path = os.path.join(state.project_dir, path)
-            #    if os.path.exists(abs_path):
-            #        with open(abs_path, 'r') as current_file:
-            #            original_text = current_file.read()
-            #        print(diff(original_text, proposed_text, "original", "proposed"))
-            #    else:
-            #        print_code(proposed_text)
+            parsed_writes = parse_writes(block.text)
 
-            parsed_file_writes = parse_writes(block.text)
-            if 0 < len(parsed_file_writes):
+            for path, proposed_text in parsed_writes:
                 errors = []
-                state, user_gave_permission = state.confirm_proceed()
+                state, user_gave_permission = state.confirm_proceed(f"Confirm write of {path}")
                 user_refused_permission = not user_gave_permission
+
                 if user_refused_permission:
-                    errors.append("User refused permission")
+                    errors.append(f"User refused permission to write {path}")
                 else:
-                    for path, proposed_text in parse_file_writes(block.text):
-                        try:
-                            with open(state.abs_path(path), 'w') as file:
-                                file.write(proposed_text)
-                            state = state.track_file(path)
-                        except Exception as e:
-                            errors.append(f"An error occured writing {path}: {e}")
-                if 0 < len(errors):
-                    errors = '\n'.join(errors)
-                    state = state.append_text("user", errors)
+                    try:
+                        with open(state.abs_path(path), 'w') as file:
+                            file.write(proposed_text)
+                        state = state.track_file(path)
+                    except Exception as e:
+                        errors.append(f"An error occured writing {path}: {e}")
 
-                
-            #else:
-            #    # Text in file write mode.
-            #    print_system(f"About to write the following to {state.file_for_writing}")
-            #    proposed_text = block.text
-
-            #    abs_path = os.path.join(state.project_dir, state.file_for_writing)
-            #    if os.path.exists(abs_path):
-            #        with open(abs_path, 'r') as current_file:
-            #            original_text = current_file.read()
-            #        print(diff(original_text, proposed_text, "original", "proposed"))
-            #    else:
-            #        print_code(proposed_text)
-
-            #    user_refused_permission = not confirm_proceed()
-            #    if user_refused_permission:
-            #        result = "User refused permission to write the file"
-            #    else:
-            #        try:
-            #            abs_path = os.path.join(state.project_dir, state.file_for_writing)
-            #            with open(abs_path, 'w') as file:
-            #                file.write(block.text)
-            #            state = state.add_file_to_context(state.file_for_writing)
-            #            
-            #            result = "File written successfully.  File contents omitted from the context."
-            #        except Exception as e:
-            #            result= f"An error occured: {e}"
-            #        
-            #    print_system(result)
-            #    state = state.append_text('user', result)
-            #    state = state.close_file_for_writing()
-            #    state = update_state_assistant(state)
+            if errors:
+                errors = '\n'.join(errors)
+                state = state.append_text("assistant", errors)
+                state = state.print_system(errors)
 
         elif block.type == 'tool_use':
             # Tool call.

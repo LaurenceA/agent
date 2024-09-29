@@ -4,7 +4,7 @@ import hashlib
 from pathlib import Path
 from typing import Dict, List
 
-from treesitter import treesitter_ast, TreeSitterAST
+from .treesitter import treesitter_ast, TreeSitterAST
 
 """
 Valid Path must exist, and we must have read access.

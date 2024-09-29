@@ -127,9 +127,9 @@ class State:
 
         return replace(self, console_log=[*self.console_log, full_string]), user_string
 
-    def confirm_proceed(self):
+    def confirm_proceed(self, message="Proceed,"):
         while True:
-            self, user_input = self.input("Proceed, (y/n): ", "")
+            self, user_input = self.input(message + "(y/n): ", "")
             if user_input == 'y':
                 return self, True
             elif user_input == 'n':
