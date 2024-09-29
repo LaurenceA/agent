@@ -62,7 +62,7 @@ class CodeSummary(Summary):
 
 SummaryDict = Dict[FullPath, Summary]
 SummaryList = List[Tuple[FullPath, Summary]]
-Messages = List[str]
+Messages = Dict[FullPath, str]  # Changed from List[str] to Dict[FullPath, str]
 
 
 
@@ -122,9 +122,8 @@ def new_summaries_from_depth(path: FullPath, depth:int) -> SummaryList:
 
 
 
-#### Updating the previous list of summaries.
 def update_summaries_from_new_summaries(prev_summaries:SummaryDict, new_summaries: SummaryDict) -> (SummaryDict, Messages):
-    messages = []
+    messages = {}  # Changed from list to dict
 
     #Removes messages that no longer exist.
     prev_summaries, messages = delete_summaries(prev_summaries, messages)
@@ -147,21 +146,21 @@ def delete_summaries(prev_summaries:SummaryDict, messages:Messages) -> (SummaryD
         if still_valid_dir or still_valid_code:
             updated_prev_summaries[full_path] = summary
         else:
-            if not os.access(path.path, os.R_OK):
-                messages.append(f"No longer have read permission for {path.path}")
-            elif not path.path.exists():
-                messages.append(f"{path} has been deleted or renamed")
+            if not os.access(full_path.path, os.R_OK):
+                messages[full_path] = f"No longer have read permission for {full_path.path}"
+            elif not full_path.path.exists():
+                messages[full_path] = f"{full_path} has been deleted or renamed"
             elif isinstance(summary, DirSummary):
-                messages.append(f"{path} is no longer a directory (e.g. it has changed to a file)")
-            elif isinstance(summary, CodeSummary) and not is_valid_code(path.path):
-                messages.append(f"{path} is no longer a code file (e.g. it has changed to a binary file or a directory")
-            elif isinstance(summary, CodeSummary) and not path.exists():
-                messages.append(f"{path} has been deleted or renamed")
+                messages[full_path] = f"{full_path} is no longer a directory (e.g. it has changed to a file)"
+            elif isinstance(summary, CodeSummary) and not is_valid_code(full_path.path):
+                messages[full_path] = f"{full_path} is no longer a code file (e.g. it has changed to a binary file or a directory"
+            elif isinstance(summary, CodeSummary) and not full_path.exists():
+                messages[full_path] = f"{full_path} has been deleted or renamed"
             else:
                 breakpoint()
     return (updated_prev_summaries, messages)
 
-def add_summaries(prev_summaries:SummaryDict, new_summaries:SummaryDict, messages:list):
+def add_summaries(prev_summaries:SummaryDict, new_summaries:SummaryDict, messages:Messages):
     updated_prev_summaries = {**prev_summaries}
     updated_new_summaries = {**new_summaries}
 
@@ -178,7 +177,7 @@ def add_summaries(prev_summaries:SummaryDict, new_summaries:SummaryDict, message
 
         if replace:
             updated_prev_summaries[full_path] = new_summary
-            messages.append(new_summary.new_header + new_summary.contents)
+            messages[full_path] = new_summary.new_header + new_summary.contents
             del updated_new_summaries[full_path]
     
     return (updated_prev_summaries, updated_new_summaries, messages)
@@ -197,11 +196,10 @@ def update_summaries(prev_summaries: SummaryDict, new_summaries: SummaryDict, me
         
         if replace:
             updated_prev_summaries[full_path] = new_summary
-            messages.append(new_summary.update_header + diff(original=prev_summary.content, new=new_summary.content))
+            messages[full_path] = new_summary.update_header + new_summary.content
             del updated_new_summaries[full_path]
 
     return updated_prev_summaries, updated_new_summaries, messages
-
 
 
 #### Integrating everything
