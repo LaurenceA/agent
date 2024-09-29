@@ -25,7 +25,6 @@ tools_internal["run_command_in_shell"] = {
     "function" : run_command_in_shell,
     "report_function": report_run_command_in_shell,
     "description" : "Runs a command in the shell. Reports stdout, stderr and the exit code.  The command must return immediately, and not be interactive (e.g. an interpreter).",
-    "long_args": [],
     "input_schema" : {
         "type": "object",
         "properties": {

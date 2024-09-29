@@ -59,15 +59,8 @@ def update_state_assistant(state):
             function_name = block.name
             args = block.input
 
-
-            #Abbreviate very long arguments.
-            abbreviated_args = {**args}
-            for argname in tools_internal[function_name]['long_args']:
-                if argname in abbreviated_args:
-                    abbreviated_args[argname] = "..."
-
             #Append tool call itself to messages.
-            tool_use_block = ToolUseBlock(block.id, function_name, abbreviated_args)
+            tool_use_block = ToolUseBlock(block.id, function_name, args)
 
             #The tool call has an assistant role.
             state = state.append_block("assistant", tool_use_block)
