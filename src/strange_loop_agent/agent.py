@@ -33,8 +33,8 @@ def update_state_assistant(state):
 
             parsed_writes = parse_writes(block.text)
 
+            errors = []
             for path, proposed_text in parsed_writes:
-                errors = []
                 state, user_gave_permission = state.confirm_proceed(f"Confirm write of {path}")
                 user_refused_permission = not user_gave_permission
 

@@ -18,9 +18,10 @@
 """
 
 import os
-from FullPath import FullPath, full_path, is_valid_code
-from treesitter import treesitter_ast
 from typing import Dict, List, Tuple
+
+from .FullPath import FullPath, full_path, is_valid_code
+from .treesitter import treesitter_ast
 
 #### Classes for summaries
 class Summary():

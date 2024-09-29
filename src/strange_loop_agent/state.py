@@ -54,11 +54,12 @@ class State:
         return os.path.join(self.project_dir, rel_path)
 
     def append_state_to_messages(self):
+        """
+        Can be used to insert temporary info (i.e. that won't be cached) into messages.
+        Currently unused as its probably best to use the cache properly.
+        """
         self.messages.assert_ready_for_user_input()
-        tracked_file_string = '\n'.join([*self.tracked_files.keys()])
-
-        result = f"Tracked files:\n{tracked_file_string}"
-        return self.messages.append_text('user', result)
+        return self.messages#.append_text('user', result)
 
     def assistant_api_call(self):
         self.messages.assert_ready_for_assistant()
@@ -118,7 +119,7 @@ class State:
 
     def confirm_proceed(self, message="Proceed,"):
         while True:
-            self, user_input = self.input(message + "(y/n): ", "")
+            self, user_input = self.input(message + " (y/n): ", "")
             if user_input == 'y':
                 return self, True
             elif user_input == 'n':

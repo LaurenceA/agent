@@ -1,6 +1,8 @@
 import os
 import subprocess
 
+from .summary import update_summaries_from_token_sources
+
 tools_internal = {}
 
 def report_run_command_in_shell(command):
@@ -36,25 +38,30 @@ tools_internal["run_command_in_shell"] = {
     },
 }
 
-#def report_track_file(state, path):
-#    print_system(f"About to add tracked file: {path}")
+#def report_explore(path):
+#    return f"About to explore: {path}"
 #
-#def track_file(state, path):
-#    return state, f"Successfully tracked {path}"
+#def explore(path):
+#    update_summaries_from_token_sources(prev_summaries:SummaryDict, sources: List[Tuple[FullPath, int]]) -> (SummaryDict, Messages):
 #
-#tools_internal["track_file"] = {
-#    "function" : track_file,
-#    "report_function": report_track_file,
-#    "description" : "Tracks a file, so that a summary is presented in the context. All the files in the repo + any new files that are written by the agent are automatically tracked, so do not need to be added using this tool.",
+#    return output
+#
+#tools_internal["explore"] = {
+#    "function" : explore,
+#    "report_function": explore,
+#    "description" : "Explores a given path.  For a directory, it will print the contents of the directory.  For a file it will print a summary of the file, or the file itself if it is short."
 #    "long_args": [],
 #    "input_schema" : {
 #        "type": "object",
 #        "properties": {
-#            "path": {
-#                "type": "string",
-#                "description": "The path to the file to be tracked",
+#            "paths": {
+#                "type": "array",
+#                "items": {
+#                    "type" : "string",
+#                }
+#                "description": "The paths to explore. These could be paths to a file /path/to/file, function /path/to/file#function_name, class /path/to/file#class_name or method /path/to/file#class_name#method_name."
 #            },
 #        },
-#        "required": ["path"],
+#        "required": ["command"],
 #    },
 #}

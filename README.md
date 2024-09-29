@@ -57,16 +57,18 @@ This will install the package in editable mode, allowing you to make changes to 
   - Summaries are updated both for externally updated and agent-written files.
 * The model has a unified FullPath abstraction, allowing it to refer to class/function/methods within a file.
   - e.g. `path/to/file#class_name#method_name`
-* Rewinding / undo, supported by functional architecture, plus git-like file store.
-  - Does mean that you can't write to previously untracked files.
+* There is an undo command, that undoes the previous user command + assistant response.
+  - This should be used liberally, as avoids building up a huge context!
+  - Rewinds the state of the agent + all the files written by the agent.
+  - Doesn't rewind state changes from commands run by the agent, as these commands could do anything, and we can't track that.
 
 ## Summaries approach N
 
 ## TODOs:
 * write a tool for summaries
-* integrate smart merge.
+* better exceptions, especially when we know the exceptions will be caught and printed.
 
-* Don't print a message about changing a file when Claude has written it.  Instead, use Claude's standard message, which is presumably in the format that Claude likes.
+* Summaries: if you ask to explore e.g. a long function or script with no heirarchical structure, then standard explore might not print any information.
 * Summaries: be careful not to make a new code summary for e.g. a function, when the full code for the file is already available.
 * Summaries: make sure that writing files interacts correctly with sources.
 * Summaries: Special treatment for README.
