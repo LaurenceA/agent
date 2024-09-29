@@ -63,6 +63,7 @@ This will install the package in editable mode, allowing you to make changes to 
 ## Summaries approach N
 
 ## TODOs:
+* Don't print a message about changing a file when Claude has written it.  Instead, use Claude's output message, which is presumably the format that Claude likes.
 * Summaries: be careful not to make a new code summary for e.g. a function, when the full code for the file is already available.
 * Summaries: make sure that writing files interacts correctly with sources.
 * Summaries: Special treatment for README.

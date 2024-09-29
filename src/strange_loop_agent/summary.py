@@ -63,18 +63,20 @@ class CodeSummary(Summary):
 SummaryDict = Dict[FullPath, Summary]
 SummaryList = List[Tuple[FullPath, Summary]]
 Messages = Dict[FullPath, str]  # Changed from List[str] to Dict[FullPath, str]
+Source = Tuple[FullPath, int]
+Sources = List[Source]
 
 
 
 
 #### Converting a raw list of tokens per source into new summaries.
-def new_summaries_from_token_sources(sources: List[Tuple[FullPath,int]]) -> SummaryDict:
+def new_summaries_from_token_sources(sources: Sources) -> SummaryDict:
     #Gather all new sources.
     result_list = []
     for source_path, source_max_tokens in sources:
         result_list = result_list + new_summaries_from_token_source(source_path, source_max_tokens)
 
-    #De-duplicate
+    #Could be duplicates because this takes multiple sources.  De-duplicate.
     result_dict = {} 
     for path, summary in result_list:
         insert = True
@@ -122,29 +124,28 @@ def new_summaries_from_depth(path: FullPath, depth:int) -> SummaryList:
 
 
 
-def update_summaries_from_new_summaries(prev_summaries:SummaryDict, new_summaries: SummaryDict) -> (SummaryDict, Messages):
-    messages = {}  # Changed from list to dict
+def update_summaries_from_new_summaries(summaries:SummaryDict, new_summaries: SummaryDict) -> (SummaryDict, Messages):
+    messages = {}
 
     #Removes messages that no longer exist.
-    prev_summaries, messages = delete_summaries(prev_summaries, messages)
-
-    #Moves brand new messages (i.e. where there wasn't a message of that type or depth before) from new_summaries to prev_summaries
-    prev_summaries, new_summaries, messages = add_summaries(prev_summaries, new_summaries, messages)
+    summaries, messages = delete_summaries(summaries, messages)
 
     #Applies any updates (i.e. for messages of the same type)
-    prev_summaries, new_summaries, messages = update_summaries(prev_summaries, new_summaries, messages)
+    summaries, messages = update_summaries(summaries, messages)
 
-    assert 0 == len(new_summaries)
-    return prev_summaries, messages
+    #Moves brand new messages (i.e. where there wasn't a message of that type or depth before) from new_summaries to prev_summaries
+    summaries, messages = add_summaries(summaries, new_summaries, messages)
+
+    return summaries, messages
     
-def delete_summaries(prev_summaries:SummaryDict, messages:Messages) -> (SummaryDict, Messages):
-    updated_prev_summaries = {**prev_summaries}
+def delete_summaries(summaries:SummaryDict, messages:Messages) -> (SummaryDict, Messages):
+    updated_summaries = {}
 
-    for full_path, summary in prev_summaries.items():
+    for full_path, summary in summaries.items():
         still_valid_dir = isinstance(summary, DirSummary) and full_path.is_valid_dir()
         still_valid_code = isinstance(summary, CodeSummary) and full_path.is_valid_code()
         if still_valid_dir or still_valid_code:
-            updated_prev_summaries[full_path] = summary
+            updated_summaries[full_path] = summary
         else:
             if not os.access(full_path.path, os.R_OK):
                 messages[full_path] = f"No longer have read permission for {full_path.path}"
@@ -158,48 +159,41 @@ def delete_summaries(prev_summaries:SummaryDict, messages:Messages) -> (SummaryD
                 messages[full_path] = f"{full_path} has been deleted or renamed"
             else:
                 breakpoint()
-    return (updated_prev_summaries, messages)
+    return (updated_summaries, messages)
 
-def add_summaries(prev_summaries:SummaryDict, new_summaries:SummaryDict, messages:Messages):
-    updated_prev_summaries = {**prev_summaries}
-    updated_new_summaries = {**new_summaries}
+def update_summaries(summaries: SummaryDict, messages: Messages) -> (SummaryDict, Messages):
+    updated_summaries = {}
 
+    for full_path, summary in summaries.items():
+        updated_summary = summary.update()
+        if summary.contents != update_summary.contents:
+            messages[full_path] = updated_summary.update_header + updated_summary.content
+        updated_summaries[full_path] = updated_summary
+
+    return (updated_summaries, messages)
+
+def add_summaries(summaries:SummaryDict, new_summaries:SummaryDict, messages:Messages):
+    updated_summaries = {**summaries}
+
+    #New summaries may have unnecessary new summaries, e.g. those that we already have,
+    #or those where we already have a deeper code summary.
     for full_path, new_summary in new_summaries.items():
-        replace = False
-        if full_path not in prev_summaries:
-            replace = True
+        insert = False
+        if full_path not in summaries:
+            insert = True
 
-        if full_path in prev_summaries:
-            prev_summary = prev_summaries[full_path]
-            if isinstance(prev_summary, CodeSummary) and isinstance(new_summary, CodeSummary):
-                if new_summary.depth > prev_summary.depth:
-                    replace = True
+        if full_path in summaries:
+            summary = prev_summaries[full_path]
+            if isinstance(summary, CodeSummary) and isinstance(new_summary, CodeSummary):
+                if new_summary.depth > summary.depth:
+                    insert = True
 
-        if replace:
-            updated_prev_summaries[full_path] = new_summary
+        if insert:
+            updated_summaries[full_path] = new_summary
             messages[full_path] = new_summary.new_header + new_summary.contents
-            del updated_new_summaries[full_path]
     
-    return (updated_prev_summaries, updated_new_summaries, messages)
+    return (updated_summaries, messages)
 
-
-def update_summaries(prev_summaries: SummaryDict, new_summaries: SummaryDict, messages: Messages) -> (SummaryDict, SummaryDict, Messages):
-    updated_prev_summaries = {**prev_summaries}
-    updated_new_summaries = {**new_summaries}
-
-    for full_path, new_summary in new_summaries.items():
-        replace = False
-        if full_path in prev_summaries:
-            prev_summary = prev_summaries[full_path] 
-            if type(prev_summary) == type(new_summary):
-                replace = True
-        
-        if replace:
-            updated_prev_summaries[full_path] = new_summary
-            messages[full_path] = new_summary.update_header + new_summary.content
-            del updated_new_summaries[full_path]
-
-    return updated_prev_summaries, updated_new_summaries, messages
 
 
 #### Integrating everything
@@ -208,4 +202,5 @@ def update_summaries_from_token_sources(prev_summaries:SummaryDict, sources: Lis
     return update_summaries_from_new_summaries(prev_summaries, new_summaries)
 
 
-ns, ms = update_summaries_from_token_sources({}, [(full_path('src/strange_loop_agent/summary.py'), 10000)])
+fp = full_path('src/strange_loop_agent/summary.py')
+ns, ms = update_summaries_from_token_sources({}, [(fp, 10000)])
