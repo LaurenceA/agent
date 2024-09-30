@@ -65,7 +65,7 @@ This will install the package in editable mode, allowing you to make changes to 
 ## Summaries approach N
 
 ## TODOs:
-* test summary updates. 
+* test summary updates.
 
 * how to integrate LSP info like where a function is called?
   - just get Claude to write requests for the LSP?

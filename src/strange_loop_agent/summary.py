@@ -41,7 +41,7 @@ class DirSummary(Summary):
         return f'<directory_contents, path={self.path}>\n{self.contents}\n</directory>'
 
     def update(self):
-        return SummaryDir(self.path)
+        return DirSummary(self.path)
 
     #def diff(self, other):
 
@@ -64,7 +64,7 @@ class CodeSummary(Summary):
         return f'<file_contents, path={self.path}>\n{self.contents}\n</file_contents>'
 
     def update(self):
-        return SummaryCode(self.path, self.depth)
+        return CodeSummary(self.path, self.depth)
         #returns a new summary, based on the path and depth
 
     #def diff(self, other):
@@ -133,22 +133,9 @@ def new_summaries_from_depth(path: FullPath, depth:int) -> SummaryList:
 
 
 
-def update_summaries_from_new_summaries(summaries:SummaryDict, new_summaries: SummaryDict) -> (SummaryDict, Messages):
-    messages = {}
-
-    #Removes messages that no longer exist.
-    summaries, messages = delete_summaries(summaries, messages)
-
-    #Applies any updates (i.e. for messages of the same type)
-    summaries, messages = update_summaries(summaries, messages)
-
-    #Moves brand new messages (i.e. where there wasn't a message of that type or depth before) from new_summaries to prev_summaries
-    summaries, messages = add_summaries(summaries, new_summaries, messages)
-
-    return summaries, messages
-    
-def delete_summaries(summaries:SummaryDict, messages:Messages) -> (SummaryDict, Messages):
+def delete_summaries(summaries:SummaryDict) -> (SummaryDict, Messages):
     updated_summaries = {}
+    messages = {}
 
     for full_path, summary in summaries.items():
         still_valid_dir = isinstance(summary, DirSummary) and full_path.is_valid_dir()
@@ -170,19 +157,21 @@ def delete_summaries(summaries:SummaryDict, messages:Messages) -> (SummaryDict, 
                 breakpoint()
     return (updated_summaries, messages)
 
-def update_summaries(summaries: SummaryDict, messages: Messages) -> (SummaryDict, Messages):
+def update_summaries(summaries: SummaryDict) -> (SummaryDict, Messages):
     updated_summaries = {}
+    messages = {}
 
     for full_path, summary in summaries.items():
         updated_summary = summary.update()
-        if summary.contents != update_summary.contents:
-            messages[full_path] = updated_summary.update_header + updated_summary.content
-        updated_summaries[full_path] = updated_summary.update_message(summary)
+        if summary.contents != updated_summary.contents:
+            messages[full_path] = updated_summary.update_message(summary)
+        updated_summaries[full_path] = updated_summary
 
     return (updated_summaries, messages)
 
-def add_summaries(summaries:SummaryDict, new_summaries:SummaryDict, messages:Messages):
+def add_summaries(summaries:SummaryDict, new_summaries:SummaryDict):
     updated_summaries = {**summaries}
+    messages = {}
 
     #New summaries may have unnecessary new summaries, e.g. those that we already have,
     #or those where we already have a deeper code summary.
@@ -206,9 +195,18 @@ def add_summaries(summaries:SummaryDict, new_summaries:SummaryDict, messages:Mes
 
 
 #### Integrating everything
-def update_summaries_from_token_sources(prev_summaries:SummaryDict, sources: List[Tuple[FullPath, int]]) -> (SummaryDict, Messages):
+def update_delete_summaries(summaries:SummaryDict) -> (SummaryDict, Messages):
+    #Removes summaries that no longer exist.
+    summaries, delete_messages = delete_summaries(summaries)
+
+    #Applies any updates (i.e. for summaries of the same type)
+    summaries, update_messages = update_summaries(summaries)
+
+    return summaries, {**delete_messages, **update_messages}
+
+def add_summaries_from_token_sources(prev_summaries:SummaryDict, sources: List[Tuple[FullPath, int]]) -> (SummaryDict, Messages):
     new_summaries = new_summaries_from_token_sources(sources)
-    return update_summaries_from_new_summaries(prev_summaries, new_summaries)
+    return add_summaries(prev_summaries, new_summaries)
 
 
 #fp = full_path('src/')

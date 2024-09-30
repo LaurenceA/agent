@@ -1,9 +1,6 @@
 import os
 import subprocess
 
-from .summary import update_summaries_from_token_sources
-from .FullPath import full_path
-
 from dataclasses import replace
 
 tools_internal = {}
@@ -44,11 +41,7 @@ def report_explore(paths):
     return f"About to explore: {paths}"
 
 def explore(state, paths):
-    sources = [(full_path(path), 10000) for path in paths]
-    updated_summaries, messages = update_summaries_from_token_sources(state.summaries, sources)
-    state = replace(state, summaries = updated_summaries)
-
-    return state, '\n\n\n'.join(messages.values())
+    return state.add_summaries(paths)
 
 tools_internal["explore"] = {
     "function" : explore,

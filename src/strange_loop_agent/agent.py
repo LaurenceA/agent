@@ -20,6 +20,13 @@ def update_state_assistant(state):
     #The last message must be a user message.
     state.messages.assert_ready_for_assistant()
 
+    #Check for any external updates since the model was last run.
+    state, messages = state.update_summaries()
+    if messages:
+        messages = 'External updates to summarised files and folders: \n\n' + messages
+        state = state.print_system(messages)
+        state = state.append_text("user", messages)
+
     state = state.print_Assistant()
 
     response = state.assistant_api_call()

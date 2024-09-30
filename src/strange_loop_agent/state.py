@@ -11,7 +11,8 @@ from .models import Model, openai_client, anthropic_client
 from .tools import tools_internal
 from .utils import hash_file
 from .system_message import system_message
-from .summary import SummaryDict
+from .summary import SummaryDict, add_summaries_from_token_sources, update_delete_summaries
+from .FullPath import full_path
 
 from .messages import Messages
 from .formatting import color
@@ -125,6 +126,19 @@ class State:
             else:
                 self = self.print_system("Invalid input. Please enter 'y' or 'n'.")
                 return self.confirm_proceed()
+
+    def add_summaries(self, paths):
+        sources = [(full_path(path), 10000) for path in paths]
+        updated_summaries, messages = add_summaries_from_token_sources(self.summaries, sources)
+        self = replace(self, summaries = updated_summaries)
+
+        return self, '\n\n\n'.join(messages.values())
+
+    def update_summaries(self):
+        updated_summaries, messages = update_delete_summaries(self.summaries)
+        self = replace(self, summaries = updated_summaries)
+
+        return self, '\n\n\n'.join(messages.values())
 
 
 def initialize_state():
