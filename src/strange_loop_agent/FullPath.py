@@ -30,6 +30,7 @@ def is_valid_path(path: Path):
     return is_valid_dir(path) or is_valid_code(path)
 
 def iterdir_all(path):
+    assert isinstance(path, Path)
     assert is_valid_dir(path)
     return [*path.iterdir()]
 
@@ -37,22 +38,22 @@ def iterdir_valid(path: Path):
     """
     Lists all directories and non-binary files that are valid.
     """
+    assert isinstance(path, Path)
     assert is_valid_dir(path)
     return [p for p in iterdir_all(path) if is_valid_path(p)]
 
 def iterdir_tracked(path: Path):
     """
-    Lists all directories and non-binary files that are tracked (i.e. valid, and non hidden (i.e. with a . at the start).
+    Lists all directories and non-binary files that are tracked (i.e. valid, and non hidden e.g. with a . at the start).
     """
+    assert isinstance(path, Path)
     assert is_valid_dir(path)
-    return [p for p in iterdir_valid(path) if tracked(path.name)]
+    return [p for p in iterdir_valid(path) if tracked(p.name)]
 
 def tracked(filename):
-    excluded_patterns = [r'^\.', r'^\.']
-    for pattern in excluded_patterns:
-        if re.search(pattern, filename):
-            return False
-    return True
+    assert isinstance(filename, str)
+    excluded_patterns = r'^\.|\.swp$|\.egg-info$'
+    return not re.search(excluded_patterns, filename)
 
 """
 There are several slow operations, including doing a treesitter parse

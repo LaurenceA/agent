@@ -65,24 +65,50 @@ This will install the package in editable mode, allowing you to make changes to 
 ## Summaries approach N
 
 ## TODOs:
-* write a tool for summaries
-* better exceptions, especially when we know the exceptions will be caught and printed.
-* cache system message.
+* test summary updates. 
 
-* Undo:
-  - actually implement the command!
-  - tree-structured undo (but how to explore the tree?)
+* how to integrate LSP info like where a function is called?
+  - just get Claude to write requests for the LSP?
 
-* Summaries: if you ask to explore e.g. a long function or script with no heirarchical structure, then standard explore might not print any information.
-* Summaries: be careful not to make a new code summary for e.g. a function, when the full code for the file is already available.
-* Summaries: make sure that writing files interacts correctly with sources.
-* Summaries: Special treatment for README.
-* Summaries: Optional GPT-4o-mini summaries.
-* Summaries: Anything other than function / class definitions (e.g. Haskell typedef)?
-* Summaries: .gitignore format for paths to ignore.
-* System prompt describing path format (i.e. path/to/file#class_name#function_name)
-* Sources: Tool to add new sources.
+* Labels for code blocks:
+  - Integrate them into files as the full contents are printed.
+  - Include a comment in the system prompt to avoid calling them
 
+* undo: 
+  - state records optional info about how to undo/redo changes to the file system from that step.
+  - deleted files are hard, but okay if you undo step-by-step.
+  - specifically, you have dict mapping 
+
+* overseer "agent":
+  - Runs concurrently with the main agent.
+  - Quite weak model (4o-mini / haiku?)
+  - Just takes the last user input + the model's response (e.g. not context).
+  - Asks two questions:
+    - Is it on-topic?
+    - Is it finished with the task?
+    - Is it going round in circles?
+  - If any of these are true, stop, and optionally undo a couple of times.
+
+* recursive agent calling:
+  - agent can call itself as a tool.
+  - usual use is:
+    - top-level agent gets asked a complex task.
+    - it breaks it up into smaller tasks.
+    - gives each smaller task to its own agent.
+    - useful for managing context, because each smaller task has 
+
+* Search tools:
+  - Google search tool.
+  - Load webpage tool.
+
+* Summaries:
+  - if you ask to explore e.g. a long function or script with no heirarchical structure, then standard explore might not print any information.  You need to force some info printed.
+  - Summaries: make sure that writing files interacts correctly with sources.
+  - Summaries: Optional GPT-4o-mini summaries.
+  - Summaries: Anything other than function / class definitions (e.g. Haskell typedef)?
+  - Summaries: .gitignore format for paths to ignore.
+
+* Allow agent to use interactive tools.
 
 * How to cross-reference context vs line numbers in error messages?
   - The problem is that error messages come with line numbers in the underlying files.
@@ -91,6 +117,3 @@ This will install the package in editable mode, allowing you to make changes to 
     - Use GPT-4o mini to take the error message, and return the filenames + linenumbers referred to in the error message.
     - Translate these filenames + linenumbers into relative paths (e.g. path to a function + line number within the function).
     - Put these back into the error message.
-
-
-* Add sources tool.

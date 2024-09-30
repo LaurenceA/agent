@@ -211,5 +211,5 @@ def update_summaries_from_token_sources(prev_summaries:SummaryDict, sources: Lis
     return update_summaries_from_new_summaries(prev_summaries, new_summaries)
 
 
-fp = full_path('src/')
-ns, ms = update_summaries_from_token_sources({}, [(fp, 10000)])
+#fp = full_path('src/')
+#ns, ms = update_summaries_from_token_sources({}, [(fp, 10000)])

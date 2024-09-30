@@ -128,15 +128,6 @@ class State:
 
 
 def initialize_state():
-    #Set up tracked files
-    git_ls_files = subprocess.run('git ls-files', shell=True, capture_output=True, text=True)
-    if git_ls_files.returncode == 0:
-        #Use git's tracked files if git exists, and we are in a pre-existing repo.
-        tracked_file_list = git_ls_files.stdout.strip().split('\n')
-    else:
-        #Use git's tracked files if git exists, and we are in a pre-existing repo.
-        raise NotImplementedError()
-
     #### Set up hash files
     hash_dir = Path(config['hash_dir'])
     #Make a hash directory if it doesn't exist
