@@ -66,26 +66,23 @@ def update_state_assistant(state, undo_state):
                 if user_refused_permission:
                     errors.append(f"User refused permission to write {path}")
                 else:
-                    #Record file contents before modification. TODO: think about file errors.
-                    if path.path.exists():
-                        with path.path.open() as file:
-                            before = file.read()
-                    else:
-                        before = None
-
-                    
-                    path.write(proposed_text)
                     try:
+                        #Record file contents before modification.  Any read errors are captured.
+                        if path.path.exists():
+                            with path.path.open() as file:
+                                before = file.read()
+                        else:
+                            before = None
+
                         path.write(proposed_text)
+
+                        #Record file contents after modification; really shouldn't error.
+                        with path.path.open() as file:
+                            after = file.read()
+                        files_undo_info.append(FileUndoInfo(path=path.path, before=before, after=after))
                     except Exception as e:
                         errors.append(f"An error occured writing {path}: {e}")
 
-
-                    #Record file contents after modification.
-                    with path.path.open() as file:
-                        after = file.read()
-
-                    files_undo_info.append(FileUndoInfo(path=path.path, before=before, after=after))
 
             state_undo_info.append(StateUndoInfo(state=undo_state, files_undo_info=files_undo_info))
             

@@ -65,8 +65,6 @@ This will install the package in editable mode, allowing you to make changes to 
 ## Summaries approach N
 
 ## TODOs:
-* Use explain_why_invalid more liberally.
-
 * how to integrate LSP info where a function is called?
   - just get Claude to write requests for the LSP?
 
@@ -104,7 +102,7 @@ This will install the package in editable mode, allowing you to make changes to 
   - Summaries: Anything other than function / class definitions (e.g. Haskell typedef)?
   - Summaries: .gitignore format for paths to ignore.
 
-* Allow agent to use interactive tools.
+* Allow agent to use interactive tools, like a Python interpreter
 
 * How to cross-reference context vs line numbers in error messages?
   - The problem is that error messages come with line numbers in the underlying files.

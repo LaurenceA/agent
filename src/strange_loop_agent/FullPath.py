@@ -132,6 +132,15 @@ class FullPath():
         self.path = path
         self.parts = parts
 
+    def explain_why_not_exists_accessible(self):
+        if not self.path.exists():
+            return f"{self.path} does not exist"
+        elif not os.access(self.path, os.R_OK):
+            return f"No read permission for {self.path}"
+        elif not os.access(self.path, os.W_OK):
+            return f"No write permission for {self.path}"
+
+
     def explain_why_invalid(self):
         assert not self.is_valid()
 
@@ -146,7 +155,6 @@ class FullPath():
         elif self.path.is_file() and is_utf8(self.path) and not treesitter_file_ast(self.path).exists(self.parts):
             parts = '#' + '#'.join(self.parts)
             return f"{self.path} is a file, and is UTF-8 formatted, but there doesn't seem to be a function/class/method at {parts}"
-            
 
     def is_valid_dir(self):
         return is_valid_dir(self.path) and (len(self.parts) == 0)
