@@ -65,17 +65,14 @@ This will install the package in editable mode, allowing you to make changes to 
 ## Summaries approach N
 
 ## TODOs:
-* how to integrate LSP info like where a function is called?
+* Use explain_why_invalid more liberally.
+
+* how to integrate LSP info where a function is called?
   - just get Claude to write requests for the LSP?
 
 * Labels for code blocks:
   - Integrate them into files as the full contents are printed.
   - Include a comment in the system prompt to avoid calling them
-
-* undo: 
-  - state records optional info about how to undo/redo changes to the file system from that step.
-  - deleted files are hard, but okay if you undo step-by-step.
-  - specifically, you have dict mapping 
 
 * overseer "agent":
   - Runs concurrently with the main agent.

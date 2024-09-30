@@ -35,7 +35,6 @@ config = {**default_config, **repo_config}
 @dataclass(frozen=True)
 class State:
     system_message: str
-    tracked_files: dict             # Dict mapping tracked file names to current hashes.
     max_tokens: int                 # Max tokens for any completion
     hash_dir: str                   # Directory with ...
     weak_model: Model               # Weak model
@@ -64,26 +63,6 @@ class State:
         self.messages.assert_ready_for_assistant()
         return self.strong_model.response(self.system_message, self.append_state_to_messages(), tools=tools_internal)
 
-    def track_file(self, path):
-        assert isinstance(path, Path)
-        tracked_files = {**self.tracked_files}
-
-        _hash = hash_file(path)
-        hash_path = os.path.join(self.hash_dir, _hash)
-            
-        if not os.path.exists(hash_path):
-            shutil.copy(path, hash_path)
-        tracked_files[path] = _hash
-
-        return replace(self, tracked_files=tracked_files)
-
-    def update_hashes(self):
-        """
-        Should be called just before the assistant, so that you can restore the state to just before the assistant messed stuff up.
-        If the user messes stuff up, that's on them...
-        """
-        tracked_files = update_hashes(self.hash_dir, list(self.tracked_files.keys()))
-
     def print(self, string):
         print(string)
         return replace(self, console_log=[*self.console_log, string])
@@ -105,6 +84,9 @@ class State:
 
     def print_internal_error(self, string):
         return self.print(color.RED+string+color.RESET)
+
+    def print_initial_message(self):
+        return self.print(color.RED+'Welcome to the agent'+color.RESET)
 
     def input_user(self):
         return self.input(color.PURPLE, color.RESET)
@@ -156,7 +138,6 @@ def initialize_state():
         system_message = system_message,
         max_tokens = config["max_tokens"],
         hash_dir = hash_dir,
-        tracked_files = {},
         weak_model = Model(openai_client, 'gpt-4o-mini'),
         strong_model = Model(anthropic_client, 'claude-3-5-sonnet-20240620'),
         #strong_model = Model(anthropic_client, 'claude-3-haiku-20240307'),

@@ -7,8 +7,7 @@
   - Asking for a directory recurses through directories
   - Asking for a codefile / codeblock just gives a single summary block.
 * What do they print?
-  - Directories just print the file / subdirectory names.
-  - Codefiles/blocks either print a summary of the code to some depth, or the full code.
+  - Directories just print the file / subdirectory names.  - Codefiles/blocks either print a summary of the code to some depth, or the full code.
 * What happens when we update a pre-existing summary block? 
   - We diff the summary text.  
   - For code files, this requires that we record the depth, but not the number of tokens.
@@ -205,8 +204,17 @@ def update_delete_summaries(summaries:SummaryDict) -> (SummaryDict, Messages):
     return summaries, {**delete_messages, **update_messages}
 
 def add_summaries_from_token_sources(prev_summaries:SummaryDict, sources: List[Tuple[FullPath, int]]) -> (SummaryDict, Messages):
-    new_summaries = new_summaries_from_token_sources(sources)
-    return add_summaries(prev_summaries, new_summaries)
+    checked_sources = []
+    invalid_messages = {}
+    for full_path, tokens in sources:
+        if full_path.is_valid():
+            checked_sources.append((full_path, tokens))
+        else:
+            invalid_messages[full_path] = full_path.explain_why_invalid()
+
+    new_summaries = new_summaries_from_token_sources(checked_sources)
+    summaries, messages = add_summaries(prev_summaries, new_summaries)
+    return summaries, {**messages, **invalid_messages}
 
 
 #fp = full_path('src/')

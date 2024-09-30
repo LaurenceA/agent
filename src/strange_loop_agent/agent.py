@@ -2,7 +2,11 @@ import os
 import json
 import subprocess
 import readline #Just importing readline enables nicer features for the builtin Python input.
+from dataclasses import dataclass
+from typing import Optional, List
+from pathlib import Path
 
+from .state import State
 from .diff import diff
 from .tools import tools_internal
 from .state import initialize_state
@@ -12,10 +16,23 @@ from .parse_file_writes import parse_writes
 from .messages import TextBlock, ToolUseBlock, ToolResultBlock
 
 
-def update_state_assistant(state):
+@dataclass
+class FileUndoInfo:
+    path: Path
+    before: Optional[str]
+    after: str
+
+@dataclass
+class StateUndoInfo:
+    state: State
+    files_undo_info: List[FileUndoInfo]
+
+def update_state_assistant(state, undo_state):
     """
     Takes user input, and does the things ...
     """ 
+
+    state_undo_info = [] # dict mapping Path to string (full contents of the file).
     
     #The last message must be a user message.
     state.messages.assert_ready_for_assistant()
@@ -41,6 +58,7 @@ def update_state_assistant(state):
             parsed_writes = parse_writes(block.text)
 
             errors = []
+            files_undo_info = []
             for path, proposed_text in parsed_writes:
                 state, user_gave_permission = state.confirm_proceed(f"Confirm write of {path}")
                 user_refused_permission = not user_gave_permission
@@ -48,13 +66,28 @@ def update_state_assistant(state):
                 if user_refused_permission:
                     errors.append(f"User refused permission to write {path}")
                 else:
-                    state = state.track_file(path.path)
+                    #Record file contents before modification. TODO: think about file errors.
+                    if path.path.exists():
+                        with path.path.open() as file:
+                            before = file.read()
+                    else:
+                        before = None
+
+                    
                     path.write(proposed_text)
-                    state = state.track_file(path.path)
                     try:
                         path.write(proposed_text)
                     except Exception as e:
                         errors.append(f"An error occured writing {path}: {e}")
+
+
+                    #Record file contents after modification.
+                    with path.path.open() as file:
+                        after = file.read()
+
+                    files_undo_info.append(FileUndoInfo(path=path.path, before=before, after=after))
+
+            state_undo_info.append(StateUndoInfo(state=undo_state, files_undo_info=files_undo_info))
             
             if errors:
                 errors = '\n'.join(errors)
@@ -85,6 +118,8 @@ def update_state_assistant(state):
             user_refused_permission = False
             if not all_required_args_present:
                 result = f"Tool {function_name} requires arguments {required_args}, but given {[*args.keys()]}"
+            if function_name not in tools_internal:
+                result = f"Tool {function_name} not avaliable"
             else:
                 #Call the report function.  It should print directly, and not return anything.
                 state = state.print_system(tools_internal[function_name]['report_function'](**args))
@@ -111,12 +146,13 @@ def update_state_assistant(state):
             #If the user refused to use the tool, pass back immediately to user to provide more context.
             #Otherwise, recursively call LLM
             if not user_refused_permission:
-                state = update_state_assistant(state)
+                state, later_state_undo_info = update_state_assistant(state, state)
+                state_undo_info = state_undo_info + later_state_undo_info
             
         else:
             state = state.print_internal_error(block)
 
-    return state
+    return state, state_undo_info
 
 def update_state_user(state, user_input):
     """
@@ -129,17 +165,34 @@ def update_state_user(state, user_input):
     return state.append_text("user", user_input)
 
 state = initialize_state()
-states = []
+state = state.print_initial_message()
+undo_info = []
+redo_info = []
 
 while True:
+    state_before_user_input = state
     state = state.print_User()
     state, user_input = state.input_user()
     if user_input == "exit":
         break
-    if user_input == "undo":
-        break
+    elif user_input == "undo":
+        if 0 < len(undo_info):
+            ud = undo_info[-1]
+            undo_info = undo_info[:-1]
+            state = ud.state
+            print('\n\n\n\n\n\n\n')
+            print('\n'.join(state.console_log))
+            for file_undo_info in ud.files_undo_info:
+                path = file_undo_info.path
+                before = file_undo_info.before
+
+                if before is not None:
+                    with path.open('w') as file:
+                        file.write(before)
+                else:
+                    path.unlink()
     else:
         #Save the state just before you use the assistant.
-        states.append(state)
         state = update_state_user(state, user_input)
-        state = update_state_assistant(state)
+        state, new_undo_info = update_state_assistant(state, undo_state=state_before_user_input)
+        undo_info = undo_info + new_undo_info

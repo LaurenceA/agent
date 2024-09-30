@@ -132,6 +132,22 @@ class FullPath():
         self.path = path
         self.parts = parts
 
+    def explain_why_invalid(self):
+        assert not self.is_valid()
+
+        if not self.path.exists():
+            return f"{self.path} does not exist"
+        elif not os.access(self.path, os.R_OK):
+            return f"No read permission for {self.path}"
+        elif self.path.is_dir() and 0 < len(self.parts):
+            return f"{self.path} is a directory, yet there are function/class/method names in the full path, {self}"
+        elif self.path.is_file() and not is_utf8(self.path):
+            return f"{self.path} is a file, but isn't UTF-8 formatted."
+        elif self.path.is_file() and is_utf8(self.path) and not treesitter_file_ast(self.path).exists(self.parts):
+            parts = '#' + '#'.join(self.parts)
+            return f"{self.path} is a file, and is UTF-8 formatted, but there doesn't seem to be a function/class/method at {parts}"
+            
+
     def is_valid_dir(self):
         return is_valid_dir(self.path) and (len(self.parts) == 0)
 
@@ -144,8 +160,7 @@ class FullPath():
             return True
         else:
             #We are in a valid code file, and there are parts
-            ts = treesitter_file_ast(self.path)
-            return codeblock_exists(ts, self.parts)
+            return treesitter_file_ast(self.path).exists(self.parts)
 
     def is_valid(self):
         return self.is_valid_code() or self.is_valid_dir()
