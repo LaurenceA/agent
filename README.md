@@ -65,8 +65,6 @@ This will install the package in editable mode, allowing you to make changes to 
 ## Summaries approach N
 
 ## TODOs:
-* test summary updates.
-
 * how to integrate LSP info like where a function is called?
   - just get Claude to write requests for the LSP?
 
@@ -102,6 +100,7 @@ This will install the package in editable mode, allowing you to make changes to 
   - Load webpage tool.
 
 * Summaries:
+  - if you change a sufficiently long block, you should diff it!
   - if you ask to explore e.g. a long function or script with no heirarchical structure, then standard explore might not print any information.  You need to force some info printed.
   - Summaries: make sure that writing files interacts correctly with sources.
   - Summaries: Optional GPT-4o-mini summaries.

@@ -55,11 +55,15 @@ def update_state_assistant(state):
                         path.write(proposed_text)
                     except Exception as e:
                         errors.append(f"An error occured writing {path}: {e}")
-
+            
             if errors:
                 errors = '\n'.join(errors)
                 state = state.append_text("assistant", errors)
                 state = state.print_system(errors)
+
+            #Update the summaries, but don't print any messages (as all that info
+            #is contained in the assistant response anyway).
+            state, messages = state.update_summaries()
 
         elif block.type == 'tool_use':
             # Tool call.
