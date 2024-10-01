@@ -12,7 +12,7 @@ system_message = "You are a helpful assistant"
 class Bool(BaseModel):
     bool: bool
 
-def unchanged_unimplmented_comments(code: str):
+def unchanged_comments(code: str):
     _comments = extract_comments(code)
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=100) as executor:

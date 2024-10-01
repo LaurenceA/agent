@@ -5,8 +5,8 @@ from tree_sitter_languages import get_parser
 @dataclass
 class Comment:
     text: str
-    start: int
-    end: int
+    start_index: int
+    end_index: int
 
 def extract_comments(source_code: str) -> List[Comment]:
     # Get the Python parser
@@ -32,7 +32,7 @@ def extract_comments(source_code: str) -> List[Comment]:
             start_index = get_byte_index(source_code_bytes, start_point)
             end_index = get_byte_index(source_code_bytes, end_point)
             comment_text = source_code_bytes[start_index:end_index].decode('utf8').strip()
-            comments.append(Comment(text=comment_text, start=start_index, end=end_index))
+            comments.append(Comment(text=comment_text, start_index=start_index, end_index=end_index))
         
         if cursor.goto_first_child():
             continue

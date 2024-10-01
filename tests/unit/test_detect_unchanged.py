@@ -29,7 +29,7 @@ def example_function():
     
     return True
 """
-    result = unchanged_unimplmented_comments(code)
+    result = unchanged_comments(code)
     
     assert len(result) == 2
     assert "... (rest of code unchanged)" in result[0].text
@@ -45,12 +45,12 @@ def another_function():
     
     return False
 """
-    result = unchanged_unimplmented_comments(code)
+    result = unchanged_comments(code)
     
     assert len(result) == 0
 
 def test_unchanged_unimplmented_comments_empty_code():
     code = ""
-    result = unchanged_unimplmented_comments(code)
+    result = unchanged_comments(code)
     
     assert len(result) == 0

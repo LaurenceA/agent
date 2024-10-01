@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from typing import List
 
 from .models import Model, openai_client, anthropic_client
+from .detect_unchanged import unchanged_comments
 model = Model(openai_client, 'gpt-4o-mini')
 
 system_message = "You are a helpful assistant."
@@ -16,34 +17,36 @@ class Sections(BaseModel):
     sections: List[Section]
 
 def smart_merge(original, update):
-    #Ensures that you include a block from the last unchanged comment to the end
-    #unchanged_comment_line_numbers.append(len(update_lines)) 
-    #update_lines = update.split('\n')
-    #last_comment_line = 0
-    #update_sections = []
-    #for unchanged_comment_line_number in unchanged_comment_line_numbers:
-    #    _update = '\n'.join(update_lines[last_comment_line:unchanged_comment_line_number])
-    #    if _update.strip(): #Don't include if nothing present.
-    #        update_sections.append(_update)
-
-    #Find all the comments that look like #... (something unchanged)
-    #that are left by Claude when it doesn't change something.
-    splits = [*re.finditer(r'(\n*\s*#\s*\.{3}\s*\(.*?unchanged.*?\)\s*\n*)', update, flags=re.MULTILINE | re.IGNORECASE)]
-
     #Gather the updated text, i.e. that between the unchanged comments.
-    start_index = 0
+    end_index = 0
     update_sections = []
     update_sections_for_prompt = []
-    for i, split in enumerate(splits):
-        _update = update[start_index:split.start()]
+    for unchanged_comment in unchanged_comments(update):
+        _update = update[end_index:unchanged_comment.start_index]
         if _update.strip(): #Don't include if nothing present.
             update_sections.append(_update)
-        start_index = split.end()
+        end_index = unchanged_comment.end_index
 
     #Include a final section (after all the split comments)
-    _update = update[start_index:]
+    _update = update[end_index:]
     if _update.strip():
         update_sections.append(_update)
+
+    #Gather the updated text, i.e. that between the unchanged comments.
+    #splits = [*re.finditer(r'(\n*\s*#\s*\.{3}\s*\(.*?unchanged.*?\)\s*\n*)', update, flags=re.MULTILINE | re.IGNORECASE)]
+    #start_index = 0
+    #update_sections = []
+    #update_sections_for_prompt = []
+    #for i, split in enumerate(splits):
+    #    _update = update[start_index:split.start()]
+    #    if _update.strip(): #Don't include if nothing present.
+    #        update_sections.append(_update)
+    #    start_index = split.end()
+
+    ##Include a final section (after all the split comments)
+    #_update = update[start_index:]
+    #if _update.strip():
+    #    update_sections.append(_update)
 
     #Create a prompt for GPT-4o mini, telling it to give us the line numbers in the
     #original doc for the updated sections.
@@ -71,7 +74,7 @@ def smart_merge(original, update):
     #Test line numbers are non-overlapping.
     prev_end_line = -1
     for start_line, end_line in line_nums:
-        assert prev_end_line < start_line 
+        assert prev_end_line <= start_line 
         prev_end_line = end_line
 
     #Now extract sections to keep, based on the line numbers for the updated sections.
@@ -89,4 +92,6 @@ def smart_merge(original, update):
         result.append(update_sections[i])
     result.append(keep_sections[len(update_sections)])
 
-    return '\n'.join(result)
+    breakpoint()
+
+    return ''.join(result)
