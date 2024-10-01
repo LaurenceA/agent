@@ -65,19 +65,18 @@ This will install the package in editable mode, allowing you to make changes to 
 ## Summaries approach N
 
 ## TODOs:
-* replace syntax, which takes a bit of text in the underlying file with an exact match, and replaces it with something else.
+* Replace tool/tags, which takes a bit of text in the underlying file with an exact match, and replaces it with something else.
+* Move check_command before confirmation, be careful about how it is printed.
+* If model asks to explore something we already have explored, remind it it will get automatic updates.
+* Clean up full_path.
+* Nicer formatting for everything.  Especially file diffs.
+* 
 
 * a range of explore methods:
   - explore_directories (goes through directory structure, but doesn't go into files).
   - explore says directory / binary / code.
   - explore git repo (prints all files tracked).
   - when we confirm for explore, we print # tokens.
-
-* for commands, ask GPT-4o mini:
-  - Is this command trying to print a file?  (If so, don't include the command in context, instead remind the agent to use the explore tools).
-  - Is this command trying to write a file?  (If so, don't include the command in context, instead remind the agent to use the explore tools).
-
-* if model asks to explore something we already have explored, remind it it will get automatic updates.
 
 * how to integrate LSP info where a function is called?
   - just get Claude to write requests for the LSP?

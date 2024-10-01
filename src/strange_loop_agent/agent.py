@@ -13,6 +13,7 @@ from .state import initialize_state
 from .parse_file_writes import parse_writes
 from .file_change import file_change
 from .FullPath import AgentCantWriteException
+from .exceptions import AgentException
 
 from .messages import TextBlock, ToolUseBlock, ToolResultBlock
 
@@ -109,29 +110,31 @@ def update_state_assistant(state, undo_state):
             #Append the tool call result to messages, with a user role
             #If the user refuses to run the tool call, then have "User refused the use of the tool" as the result.
 
-            if function_name not in tools_internal:
-                result = f"Tool {function_name} not avaliable"
-            else:
+            try:
+                user_refused_permission = False
+                if function_name not in tools_internal:
+                    raise AgentException(f"Tool {function_name} not avaliable")
+
                 required_args = tools_internal[function_name]["input_schema"]["required"]
                 all_required_args_present = all(argname in args for argname in required_args)
 
-                user_refused_permission = False
                 if not all_required_args_present:
-                    result = f"Tool {function_name} requires arguments {required_args}, but given {[*args.keys()]}"
-                else:
-                    state = state.print_system(tools_internal[function_name]['report_function'](**args))
-                    state, user_gave_permission = state.confirm_proceed()
-                    user_refused_permission = not user_gave_permission
+                    raise AgentException(f"Tool {function_name} requires arguments {required_args}, but given {[*args.keys()]}")
 
-                    if user_refused_permission:
-                        result = "User refused the use of the tool."
-                    else:
-                        function = tools_internal[function_name]['function']
+                check = tools_internal[function_name]['check_function'](state, **args) #Raises AgentException.
+                    
+                state = state.print_system(tools_internal[function_name]['report_function'](**args))
+                state, user_gave_permission = state.confirm_proceed()
 
-                        #Running the function shouldn't change messages.
-                        prev_messages = state.messages
-                        state, result = function(state, **args)
-                        assert state.messages is prev_messages
+                if not user_gave_permission:
+                    user_refused_permission = True
+                    raise AgentException("User refused the use of the tool.")
+
+                function = tools_internal[function_name]['function']
+                state, result = function(state, **args)
+
+            except AgentException as e:
+                result = str(e)
 
             tool_result_block = ToolResultBlock(block.id, result)
                 
