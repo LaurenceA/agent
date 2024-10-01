@@ -3,6 +3,7 @@ import json
 from pydantic import BaseModel
 from typing import List
 
+from .models import Model, openai_client, anthropic_client
 model = Model(openai_client, 'gpt-4o-mini')
 
 system_message = "You are a helpful assistant."
@@ -15,28 +16,40 @@ class Section(BaseModel):
 class Sections(BaseModel):
     sections: List[Section]
 
-def merge(original, update):
-    #Find all the comments that look like #... (something unchanged)
-    #that are left by Claude when it doesn't change something.
-    splits = [*re.finditer(r'(\n*\s*#\s*\.{3}\s*\(.*?unchanged.*?\)\s*\n*)', update, flags=re.MULTILINE | re.IGNORECASE)]
+def smart_merge(original, update, unchanged_comment_line_numbers):
+    update_lines = update.split('\n')
 
-    #Gather the updated text, i.e. that between the unchanged comments.
-    start_index = 0
+    #Ensures that you include a block from the last unchanged comment to the end
+    unchanged_comment_line_numbers.append(len(update_lines)) 
+    last_comment_line = 0
     update_sections = []
-    update_sections_for_prompt = []
-    for i, split in enumerate(splits):
-        _update = update[start_index:split.start()])
+    for unchanged_comment_line_number in unchanged_comment_line_numbers:
+        _update = '\n'.join(update_lines[last_comment_line:unchanged_comment_line_number])
         if _update.strip(): #Don't include if nothing present.
             update_sections.append(_update)
-        start_index = split.end()
 
-    #Include a final section (after all the split comments)
-    _update = update[start_index:]
-    if _update.strip():
-        update_sections.append(_update)
+    ##Find all the comments that look like #... (something unchanged)
+    ##that are left by Claude when it doesn't change something.
+    #splits = [*re.finditer(r'(\n*\s*#\s*\.{3}\s*\(.*?unchanged.*?\)\s*\n*)', update, flags=re.MULTILINE | re.IGNORECASE)]
+
+    ##Gather the updated text, i.e. that between the unchanged comments.
+    #start_index = 0
+    #update_sections = []
+    #update_sections_for_prompt = []
+    #for i, split in enumerate(splits):
+    #    _update = update[start_index:split.start()])
+    #    if _update.strip(): #Don't include if nothing present.
+    #        update_sections.append(_update)
+    #    start_index = split.end()
+
+    ##Include a final section (after all the split comments)
+    #_update = update[start_index:]
+    #if _update.strip():
+    #    update_sections.append(_update)
 
     #Create a prompt for GPT-4o mini, telling it to give us the line numbers in the
     #original doc for the updated sections.
+
     update_sections_for_prompt = '\n\n\n\n\n'.join([f'Section {i}:\n{update_}' for (i, update_) in enumerate(update_sections)])
 
     original_split = original.split('\n')

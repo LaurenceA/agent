@@ -7,11 +7,11 @@ from typing import Optional, List
 from pathlib import Path
 
 from .state import State
-from .diff import diff
 from .tools import tools_internal
 from .state import initialize_state
 #from .summarize import summarize
 from .parse_file_writes import parse_writes
+from .file_change import file_change
 
 from .messages import TextBlock, ToolUseBlock, ToolResultBlock
 
@@ -59,30 +59,29 @@ def update_state_assistant(state, undo_state):
 
             errors = []
             files_undo_info = []
-            for path, proposed_text in parsed_writes:
+            for path, agent_proposed_diff in parsed_writes:
+                #try:
+                before, after, diff, to_be_implemented_comment_line_numbers = file_change(path, agent_proposed_diff)
+
+                state.print_system("Diff:")
+                state.print_system(diff)    
+
                 state, user_gave_permission = state.confirm_proceed(f"Confirm write of {path}")
                 user_refused_permission = not user_gave_permission
 
                 if user_refused_permission:
                     errors.append(f"User refused permission to write {path}")
                 else:
-                    try:
-                        #Record file contents before modification.  Any read errors are captured.
-                        if path.path.exists():
-                            with path.path.open() as file:
-                                before = file.read()
-                        else:
-                            before = None
+                    #Actually do the write
+                    with path.path.open('w') as file:
+                        file.write(after)
 
-                        path.write(proposed_text)
+                    #Record file contents after modification; really shouldn't error.
+                    files_undo_info.append(FileUndoInfo(path=path.path, before=before, after=after))
+                    state = state.append_text("user", f'{path} successfully written')
 
-                        #Record file contents after modification; really shouldn't error.
-                        with path.path.open() as file:
-                            after = file.read()
-                        files_undo_info.append(FileUndoInfo(path=path.path, before=before, after=after))
-                        state = state.append_text("user", f'{path} successfully written')
-                    except Exception as e:
-                        errors.append(f"An error occured writing {path}: {e}")
+                #except Exception as e:
+                #    errors.append(f"An error occured writing {path}: {e}")
 
 
 

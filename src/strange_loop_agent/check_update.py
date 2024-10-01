@@ -3,7 +3,7 @@ import json
 from pydantic import BaseModel
 from typing import List
 
-from .models import Model
+from .models import Model, openai_client, anthropic_client
 model = Model(openai_client, 'gpt-4o-mini')
 
 system_message = "You are a helpful assistant."
@@ -13,11 +13,11 @@ class Lines(BaseModel):
     unchanged_comment_line_numbers: List[int]
     to_be_implemented_comment_line_numbers: List[int]
 
-def check_write(write_text: str):
-    write_text_split = write_text.split('\n')
-    original_with_line_numbers = '\n'.join([f"{i}: {line}" for (i, line) in enumerate(write_text_split)])
+def check_update(update: str):
+    update_lines = update.split('\n')
+    update_with_line_numbers = '\n'.join([f"{i}: {line}" for (i, line) in enumerate(update_lines)])
 
-    prompt = f"{instruction}\n\nHere's the file:\n{original_with_line_numbers}"
+    prompt = f"{instruction}\n\nHere's the file:\n{update_with_line_numbers}"
 
     response = json.loads(model.single_shot_response(system_message, prompt, response_format=Lines))
 

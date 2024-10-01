@@ -65,6 +65,8 @@ This will install the package in editable mode, allowing you to make changes to 
 ## Summaries approach N
 
 ## TODOs:
+* print actual proposed file diff before applying.
+
 * a range of explore methods:
   - explore_directories (goes through directory structure, but doesn't go into files).
   - explore says directory / binary / code.
