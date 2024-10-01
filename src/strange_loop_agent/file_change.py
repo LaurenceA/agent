@@ -1,9 +1,10 @@
-#from .check_update import check_update
-from .smart_merge import smart_merge
 from .diff import diff
+from .detect_unchanged import unchanged_comments
+
+from .exceptions import AgentException
 
 
-def file_change(path, update):
+def file_change(path, after):
     """
     Computes, but does not apply, the change to the path represented by update.
     Returns:
@@ -13,16 +14,17 @@ def file_change(path, update):
         to_be_implemented_comment_line_numbers: a diff (e.g. for printing to the user).
     """
     #Get rid of initial and final new line
-    print(repr(update))
-    if update[:2] == '\n':
-        update = update[2:]
-    if update[-2:] == '\n':
-        update = update[:-2]
-    print(repr(update))
+    if after[:2] == '\n':
+        after = after[2:]
+    if after[-2:] == '\n':
+        after = after[:-2]
 
-    #If there's currently no file, then just use the update.
+    if unchanged_comments(after):
+        raise AgentException("There was a comment indicating unchanged code in the proposed write.  You need to write _all_ the code.  If the write is very long, try to write to a specific function/class/method using e.g. <write path=/path/to/file#function_name>.")
+
+    #If there's currently no file, then just use the after.
     if not path.path.exists():
-        return None, update, update
+        return None, after, after
 
     #If there is a file, it needs to be a valid code file.
     path.assert_can_write() #raises AgentCantWriteException
@@ -37,9 +39,6 @@ def file_change(path, update):
         before = ts.code
     else:
         before = before_full_file
-
-    #Do the smart merge.
-    after = smart_merge(before, update)
 
     #Merge it back into the file, taking account of parts.
     if 0 < len(path.parts):

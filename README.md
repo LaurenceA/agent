@@ -65,12 +65,7 @@ This will install the package in editable mode, allowing you to make changes to 
 ## Summaries approach N
 
 ## TODOs:
-* Modify the function/class parsing to use character numbers, rather than line numbers.
-* Work out why stripping the start and end new line for writes isn't working.
-
-* Don't find #... (unchanged code) using GPT-4o mini ... too flakey.  Just use regex.
-* Don't find unimplemented code using GPT-4o mini ... too flakey.  It'll error anyway.
-* Use treesitter to extract comment line.  Ask GPT-4 whether the comment lines indicate unchanged code (True/False)
+* replace syntax, which takes a bit of text in the underlying file with an exact match, and replaces it with something else.
 
 * a range of explore methods:
   - explore_directories (goes through directory structure, but doesn't go into files).

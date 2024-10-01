@@ -3,21 +3,36 @@ import subprocess
 
 from dataclasses import replace
 
+from .check_command import check_command
+
 tools_internal = {}
 
 def report_run_command_in_shell(command):
     return f"About to run command in shell: {command}"
 
 def run_command_in_shell(state, command):
-    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+    check = check_command(command)
 
-    stdout = result.stdout.strip()
-    stderr = result.stderr.strip()
-    exitcode = result.returncode
+    if check['trying_to_print_file']:
+        output = "Command wasn't run because it looks like its trying to print a file.  Use the explore tools instead."
+    if check['trying_to_print_directory']:
+        output = "Command wasn't run because it looks like its trying to print a directory.  Use the explore tools instead."
+    if check['trying_to_create_empty_file']:
+        output = "Command wasn't run because it looks like its trying to create an empty file.  Just directly write to the file using the <write> tag instead."
+    elif check['trying_to_write']:
+        output = "Command wasn't run because it looks like its trying to write a file.  Use the <write> tag instead."
+    elif check['trying_to_modify']:
+        output = "Command wasn't run because it looks like its trying to modify a file.  Use the <write> tag instead. If the write is very long, try to write to a specific function/class/method using e.g. <write path=/path/to/file#function_name>."
+    else:
+        result = subprocess.run(command, shell=True, capture_output=True, text=True)
 
-    output = f'command: {command}\nexitcode: {exitcode}\nstdout:\n{stdout}'
-    if stderr:
-        output = output + 'stderr:\n' + stderr
+        stdout = result.stdout.strip()
+        stderr = result.stderr.strip()
+        exitcode = result.returncode
+
+        output = f'command: {command}\nexitcode: {exitcode}\nstdout:\n{stdout}'
+        if stderr:
+            output = output + 'stderr:\n' + stderr
 
     return state, output
 

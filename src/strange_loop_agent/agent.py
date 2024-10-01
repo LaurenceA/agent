@@ -119,7 +119,6 @@ def update_state_assistant(state, undo_state):
                 if not all_required_args_present:
                     result = f"Tool {function_name} requires arguments {required_args}, but given {[*args.keys()]}"
                 else:
-                    #Call the report function.  It should print directly, and not return anything.
                     state = state.print_system(tools_internal[function_name]['report_function'](**args))
                     state, user_gave_permission = state.confirm_proceed()
                     user_refused_permission = not user_gave_permission

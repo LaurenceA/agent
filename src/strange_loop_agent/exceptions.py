@@ -1,0 +1,1 @@
+class AgentException(Exception): pass
