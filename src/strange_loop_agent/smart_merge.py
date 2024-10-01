@@ -15,11 +15,10 @@ class Section(BaseModel):
 class Sections(BaseModel):
     sections: List[Section]
 
-def smart_merge(original, update, unchanged_comment_line_numbers):
-    update_lines = update.split('\n')
-
+def smart_merge(original, update):
     #Ensures that you include a block from the last unchanged comment to the end
     #unchanged_comment_line_numbers.append(len(update_lines)) 
+    #update_lines = update.split('\n')
     #last_comment_line = 0
     #update_sections = []
     #for unchanged_comment_line_number in unchanged_comment_line_numbers:
