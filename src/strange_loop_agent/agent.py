@@ -111,29 +111,30 @@ def update_state_assistant(state, undo_state):
             #Append the tool call result to messages, with a user role
             #If the user refuses to run the tool call, then have "User refused the use of the tool" as the result.
 
-            required_args = tools_internal[function_name]["input_schema"]["required"]
-            all_required_args_present = all(argname in args for argname in required_args)
-
-            user_refused_permission = False
-            if not all_required_args_present:
-                result = f"Tool {function_name} requires arguments {required_args}, but given {[*args.keys()]}"
             if function_name not in tools_internal:
                 result = f"Tool {function_name} not avaliable"
             else:
-                #Call the report function.  It should print directly, and not return anything.
-                state = state.print_system(tools_internal[function_name]['report_function'](**args))
-                state, user_gave_permission = state.confirm_proceed()
-                user_refused_permission = not user_gave_permission
+                required_args = tools_internal[function_name]["input_schema"]["required"]
+                all_required_args_present = all(argname in args for argname in required_args)
 
-                if user_refused_permission:
-                    result = "User refused the use of the tool."
+                user_refused_permission = False
+                if not all_required_args_present:
+                    result = f"Tool {function_name} requires arguments {required_args}, but given {[*args.keys()]}"
                 else:
-                    function = tools_internal[function_name]['function']
+                    #Call the report function.  It should print directly, and not return anything.
+                    state = state.print_system(tools_internal[function_name]['report_function'](**args))
+                    state, user_gave_permission = state.confirm_proceed()
+                    user_refused_permission = not user_gave_permission
 
-                    #Running the function shouldn't change messages.
-                    prev_messages = state.messages
-                    state, result = function(state, **args)
-                    assert state.messages is prev_messages
+                    if user_refused_permission:
+                        result = "User refused the use of the tool."
+                    else:
+                        function = tools_internal[function_name]['function']
+
+                        #Running the function shouldn't change messages.
+                        prev_messages = state.messages
+                        state, result = function(state, **args)
+                        assert state.messages is prev_messages
 
             tool_result_block = ToolResultBlock(block.id, result)
                 

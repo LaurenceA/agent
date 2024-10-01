@@ -206,6 +206,10 @@ class FullPath():
         return self.treesitter_ast().code
 
     def write(self, text):
+        #Get rid of initial new line
+        if text[:2] == '\n':
+            text = text[2:]
+
         assert self.is_valid_code() or ((len(self.parts) == 0) and (not self.path.exists()))
 
         if not self.is_valid_code():
@@ -219,10 +223,10 @@ class FullPath():
             with self.path.open('r') as file:
                 file_contents = file.readlines()
 
-            file_contents = [*file_contents[:ts.start_line], *ts.code.split('\n'), *file_contents[:ts.end_line]]
+            file_contents = ''.join(file_contents[:ts.start_line]) + text + ''.join(file_contents[ts.end_line:])
 
             with self.path.open('w') as file:
-                file.write('\n'.join(file_contents))
+                file.write(file_contents)
 
     def iter_tracked(self):
         """
