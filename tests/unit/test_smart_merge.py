@@ -1,4 +1,3 @@
-
 import pytest
 from strange_loop_agent.smart_merge import smart_merge, Section, Sections
 
@@ -134,5 +133,5 @@ def test_sections_model():
     assert sections.sections[0].section_number == 0
     assert sections.sections[1].start_line == 5
 
-#if __name__ == "__main__":
-#    pytest.main()
+if __name__ == "__main__":
+    pytest.main()

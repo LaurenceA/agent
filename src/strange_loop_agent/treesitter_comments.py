@@ -5,8 +5,8 @@ from tree_sitter_languages import get_parser
 @dataclass
 class Comment:
     text: str
-    start_index: int
-    end_index: int
+    start_line: int
+    end_line: int
 
 def extract_comments(source_code: str) -> List[Comment]:
     # Get the Python parser
@@ -15,24 +15,18 @@ def extract_comments(source_code: str) -> List[Comment]:
     # Parse the code
     tree = parser.parse(bytes(source_code, "utf8"))
     
-    # Helper function to get byte index from point
-    def get_byte_index(source_code_bytes, point):
-        row, column = point
-        lines = source_code_bytes.split(b'\n')
-        return sum(len(line) + 1 for line in lines[:row]) + column
-    
     comments = []
     cursor = tree.walk()
-    source_code_bytes = source_code.encode('utf8')
     
     reached_root = False
     while not reached_root:
         if cursor.node.type == 'comment':
             start_point, end_point = cursor.node.start_point, cursor.node.end_point
-            start_index = get_byte_index(source_code_bytes, start_point)
-            end_index = get_byte_index(source_code_bytes, end_point)
-            comment_text = source_code_bytes[start_index:end_index].decode('utf8').strip()
-            comments.append(Comment(text=comment_text, start_index=start_index, end_index=end_index))
+            start_line, _ = start_point
+            end_line, _ = end_point
+            comment_text = source_code.splitlines()[start_line:end_line+1]
+            comment_text = '\n'.join(comment_text).strip()
+            comments.append(Comment(text=comment_text, start_line=start_line, end_line=end_line+1))
         
         if cursor.goto_first_child():
             continue
@@ -50,5 +44,3 @@ def extract_comments(source_code: str) -> List[Comment]:
                 retracing = False
     
     return comments
-
-

@@ -18,17 +18,18 @@ class Sections(BaseModel):
 
 def smart_merge(original, update):
     #Gather the updated text, i.e. that between the unchanged comments.
-    end_index = 0
+    update_lines = update.split('\n')
+    end_line = 0
     update_sections = []
     update_sections_for_prompt = []
     for unchanged_comment in unchanged_comments(update):
-        _update = update[end_index:unchanged_comment.start_index]
+        _update = '\n'.join(update_lines[end_line:unchanged_comment.start_line])
         if _update.strip(): #Don't include if nothing present.
             update_sections.append(_update)
-        end_index = unchanged_comment.end_index
+        end_line = unchanged_comment.end_line
 
     #Include a final section (after all the split comments)
-    _update = update[end_index:]
+    _update = '\n'.join(update_lines[end_line:])
     if _update.strip():
         update_sections.append(_update)
 
@@ -92,6 +93,4 @@ def smart_merge(original, update):
         result.append(update_sections[i])
     result.append(keep_sections[len(update_sections)])
 
-    breakpoint()
-
-    return ''.join(result)
+    return '\n'.join(result)
