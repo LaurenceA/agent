@@ -71,6 +71,12 @@ This will install the package in editable mode, allowing you to make changes to 
   - explore git repo (prints all files tracked).
   - when we confirm for explore, we print # tokens.
 
+* for commands, ask GPT-4o mini:
+  - Is this command trying to print a file?  (If so, don't include the command in context, instead remind the agent to use the explore tools).
+  - Is this command trying to write a file?  (If so, don't include the command in context, instead remind the agent to use the explore tools).
+
+* if model asks to explore something we already have explored, remind it it will get automatic updates.
+
 * for code written, we have GPT-4o mini asked two questions:
   - line numbers for any "unchanged code" comments?
   - line numbers for any "implement code here" comments.

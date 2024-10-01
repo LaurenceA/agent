@@ -1,5 +1,6 @@
 import openai
 import anthropic
+from .messages import Messages
 
 _openai_client = openai.OpenAI()
 _anthropic_client = anthropic.Anthropic()
@@ -103,8 +104,8 @@ class Model:
         response = self.response(system_message, messages, cache=cache, **kwargs)
         return self.client.response_to_text(response)
 
-    def single_shot_response(self, system_prompt, prompt, **kwargs):
+    def single_shot_response(self, system_message, prompt, **kwargs):
         messages = Messages([])
         messages = messages.append_text('user', prompt)
-        response = self.response(self, model, system_message, messages, **kwargs)
-        return self.response_to_text(response)
+        response = self.client.response(self.model, system_message, messages, cache=False, **kwargs)
+        return self.client.response_to_text(response)

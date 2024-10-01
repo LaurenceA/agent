@@ -3,8 +3,6 @@ import json
 from pydantic import BaseModel
 from typing import List
 
-from models import Model, openai_client, anthropic_client
-from messages import Messages
 model = Model(openai_client, 'gpt-4o-mini')
 
 system_message = "You are a helpful assistant."
@@ -46,9 +44,7 @@ def merge(original, update):
 
     prompt = f"Identify the start and end line numbers for the following sections:\n{update_sections_for_prompt} in the following file:\n{original_with_line_numbers}"
 
-    messages = Messages([])
-    messages = messages.append_text('user', prompt)
-    response = json.loads(model.response_text(system_message, messages, False, response_format=Sections))
+    response = json.loads(model.single_shot_response(system_message, prompt, response_format=Sections))
 
     #Extract the result in a dict mapping section number to start and end line numbers.
     line_num_dict = {}
@@ -83,15 +79,3 @@ def merge(original, update):
     result.append(keep_sections[len(update_sections)])
 
     return '\n'.join(result)
-
-#
-#with open("summary.py", 'r') as file:
-#    original = file.read()
-#
-#with open("updated_summary.py", 'r') as file:
-#    update = file.read()
-#
-#merged = merge(original, update)
-#
-#with open("merged_summary.py", 'w') as file:
-#    file.write(merged)
