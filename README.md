@@ -65,7 +65,12 @@ This will install the package in editable mode, allowing you to make changes to 
 ## Summaries approach N
 
 ## TODOs:
-* print actual proposed file diff before applying.
+* Modify the function/class parsing to use character numbers, rather than line numbers.
+* Work out why stripping the start and end new line for writes isn't working.
+
+* Don't find #... (unchanged code) using GPT-4o mini ... too flakey.  Just use regex.
+* Don't find unimplemented code using GPT-4o mini ... too flakey.  It'll error anyway.
+* Use treesitter to extract comment line.  Ask GPT-4 whether the comment lines indicate unchanged code (True/False)
 
 * a range of explore methods:
   - explore_directories (goes through directory structure, but doesn't go into files).
@@ -78,10 +83,6 @@ This will install the package in editable mode, allowing you to make changes to 
   - Is this command trying to write a file?  (If so, don't include the command in context, instead remind the agent to use the explore tools).
 
 * if model asks to explore something we already have explored, remind it it will get automatic updates.
-
-* for code written, we have GPT-4o mini asked two questions:
-  - line numbers for any "unchanged code" comments?
-  - line numbers for any "implement code here" comments.
 
 * how to integrate LSP info where a function is called?
   - just get Claude to write requests for the LSP?

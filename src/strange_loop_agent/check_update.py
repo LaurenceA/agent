@@ -7,7 +7,7 @@ from .models import Model, openai_client, anthropic_client
 model = Model(openai_client, 'gpt-4o-mini')
 
 system_message = "You are a helpful assistant."
-instruction = "Identify the line numbers in this code file that correspond to unchanged code in unchanged_comment_line_numbers, and to functionality that is to be implemented in to_be_implemented_comment_line_numbers."
+instruction = "Identify the line numbers in this code file that correspond to comments such as `#... (previous code unchanged)` or `#... (unchanged code)` that indicate unchanged code from the original file is to be included there.  Also identify line numbers corresponding to comments indicating that there is unimplmented functionality for the user to include, such as `implement x here`"
 
 class Lines(BaseModel):
     unchanged_comment_line_numbers: List[int]
@@ -20,6 +20,8 @@ def check_update(update: str):
     prompt = f"{instruction}\n\nHere's the file:\n{update_with_line_numbers}"
 
     response = json.loads(model.single_shot_response(system_message, prompt, response_format=Lines))
+
+    breakpoint()
 
     return response['unchanged_comment_line_numbers'], response['to_be_implemented_comment_line_numbers']
 

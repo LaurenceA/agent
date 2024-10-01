@@ -5,6 +5,9 @@ from pathlib import Path
 from typing import Dict, List
 
 from .treesitter import treesitter_ast, TreeSitterAST
+from .exceptions import AgentException
+
+class AgentCantWriteException(AgentException): pass
 
 """
 Valid Path must exist, and we must have read access.
@@ -156,6 +159,19 @@ class FullPath():
             parts = '#' + '#'.join(self.parts)
             return f"{self.path} is a file, and is UTF-8 formatted, but there doesn't seem to be a function/class/method at {parts}"
 
+    def assert_can_write(self):
+        if not os.access(self.path, os.R_OK):
+            raise AgentCantWriteException(f"No read permission for {self.path}")
+        elif not os.access(self.path, os.W_OK):
+            raise AgentCantWriteException(f"No write permission for {self.path}")
+        elif self.path.is_dir():
+            raise AgentCantWriteException(f"{self.path} is a directory.")
+        elif self.path.is_file() and not is_utf8(self.path):
+            raise AgentCantWriteException(f"{self.path} is a file, but isn't UTF-8 formatted.")
+        elif self.path.is_file() and is_utf8(self.path) and not treesitter_file_ast(self.path).exists(self.parts):
+            parts = '#' + '#'.join(self.parts)
+            raise AgentCantWriteException(f"{self.path} is a file, and is UTF-8 formatted, but there doesn't seem to be a function/class/method at {parts}")
+
     def is_valid_dir(self):
         return is_valid_dir(self.path) and (len(self.parts) == 0)
 
@@ -204,29 +220,6 @@ class FullPath():
 
     def read(self):
         return self.treesitter_ast().code
-
-    def write(self, text):
-        #Get rid of initial new line
-        if text[:2] == '\n':
-            text = text[2:]
-
-        assert self.is_valid_code() or ((len(self.parts) == 0) and (not self.path.exists()))
-
-        if not self.is_valid_code():
-            assert len(self.parts) == 0
-
-            with self.path.open('w') as file:
-                file.write(text)
-        else:
-            ts = self.treesitter_ast()
-            
-            with self.path.open('r') as file:
-                file_contents = file.readlines()
-
-            file_contents = ''.join(file_contents[:ts.start_line]) + text + ''.join(file_contents[ts.end_line:])
-
-            with self.path.open('w') as file:
-                file.write(file_contents)
 
     def iter_tracked(self):
         """

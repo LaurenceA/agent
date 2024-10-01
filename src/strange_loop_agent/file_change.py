@@ -1,4 +1,4 @@
-from .check_update import check_update
+#from .check_update import check_update
 from .smart_merge import smart_merge
 from .diff import diff
 
@@ -13,19 +13,19 @@ def file_change(path, update):
         to_be_implemented_comment_line_numbers: a diff (e.g. for printing to the user).
     """
     #Get rid of initial and final new line
+    print(repr(update))
     if update[:2] == '\n':
         update = update[2:]
     if update[-2:] == '\n':
         update = update[:-2]
-    
-    unchanged_comment_line_numbers, to_be_implemented_comment_line_numbers = check_update(update)
+    print(repr(update))
 
     #If there's currently no file, then just use the update.
     if not path.path.exists():
-        return None, update, update, to_be_implemented_comment_line_numbers 
+        return None, update, update
 
     #If there is a file, it needs to be a valid code file.
-    assert path.is_valid_code()
+    path.assert_can_write() #raises AgentCantWriteException
 
     #If there is a file, then open it.
     with path.path.open('r') as file:
@@ -39,15 +39,15 @@ def file_change(path, update):
         before = before_full_file
 
     #Do the smart merge.
-    after = smart_merge(before, update, unchanged_comment_line_numbers)
+    after = smart_merge(before, update)
 
     #Merge it back into the file, taking account of parts.
     if 0 < len(path.parts):
         before_full_file_lines = before_full_file.split('\n')
-        after_full_file = ''.join(before_full_file_lines[:ts.start_line]) + after + ''.join(before_full_file_lines[ts.end_line:])
+        after_full_file = '\n'.join(before_full_file_lines[:ts.start_line]) + after + '\n'.join(before_full_file_lines[ts.end_line:])
     else:
         after_full_file = after
 
     _diff = diff(before_full_file, after_full_file, 'before', 'after')
 
-    return before_full_file, after_full_file, _diff, to_be_implemented_comment_line_numbers 
+    return before_full_file, after_full_file, _diff
