@@ -212,17 +212,17 @@ class FullPath():
             assert len(self.parts) == 0
 
             with self.path.open('w') as file:
-               file.write(text)
+                file.write(text)
         else:
             ts = self.treesitter_ast()
             
             with self.path.open('r') as file:
                 file_contents = file.readlines()
 
-            file_contents[ts.start_line: ts.end_line] = ts.code.split('\n')
+            file_contents = [*file_contents[:ts.start_line], *ts.code.split('\n'), *file_contents[:ts.end_line]]
 
             with self.path.open('w') as file:
-               file.write('\n'.join(file_contents))
+                file.write('\n'.join(file_contents))
 
     def iter_tracked(self):
         """

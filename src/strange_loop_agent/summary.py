@@ -180,7 +180,7 @@ def add_summaries(summaries:SummaryDict, new_summaries:SummaryDict):
             insert = True
 
         if full_path in summaries:
-            summary = prev_summaries[full_path]
+            summary = summaries[full_path]
             if isinstance(summary, CodeSummary) and isinstance(new_summary, CodeSummary):
                 if new_summary.depth > summary.depth:
                     insert = True

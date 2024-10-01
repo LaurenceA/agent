@@ -52,7 +52,7 @@ class TreeSitterAST:
         if len(parts) == 0:
             return True
         elif parts[0] in self.children:
-            return self.children[parts[0]].codeblock_exists(parts[1:])
+            return self.children[parts[0]].exists(parts[1:])
         else:
             return False
 
@@ -63,7 +63,7 @@ class TreeSitterAST:
         if len(parts) == 0:
             return self
         else:
-            return self.children[parts[0]].codeblock_index(parts[1:])
+            return self.children[parts[0]].index(parts[1:])
     
 
 def treesitter_ast_just_function_class(all_code: str):

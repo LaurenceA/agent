@@ -65,6 +65,16 @@ This will install the package in editable mode, allowing you to make changes to 
 ## Summaries approach N
 
 ## TODOs:
+* a range of explore methods:
+  - explore_directories (goes through directory structure, but doesn't go into files).
+  - explore says directory / binary / code.
+  - explore git repo (prints all files tracked).
+  - when we confirm for explore, we print # tokens.
+
+* for code written, we have GPT-4o mini asked two questions:
+  - line numbers for any "unchanged code" comments?
+  - line numbers for any "implement code here" comments.
+
 * how to integrate LSP info where a function is called?
   - just get Claude to write requests for the LSP?
 

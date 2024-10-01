@@ -80,8 +80,10 @@ def update_state_assistant(state, undo_state):
                         with path.path.open() as file:
                             after = file.read()
                         files_undo_info.append(FileUndoInfo(path=path.path, before=before, after=after))
+                        state = state.append_text("user", f'{path} successfully written')
                     except Exception as e:
                         errors.append(f"An error occured writing {path}: {e}")
+
 
 
             state_undo_info.append(StateUndoInfo(state=undo_state, files_undo_info=files_undo_info))

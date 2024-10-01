@@ -102,3 +102,9 @@ class Model:
     def response_text(self, system_message, messages, cache=True, **kwargs):
         response = self.response(system_message, messages, cache=cache, **kwargs)
         return self.client.response_to_text(response)
+
+    def single_shot_response(self, system_prompt, prompt, **kwargs):
+        messages = Messages([])
+        messages = messages.append_text('user', prompt)
+        response = self.response(self, model, system_message, messages, **kwargs)
+        return self.response_to_text(response)

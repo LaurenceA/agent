@@ -46,7 +46,7 @@ def explore(state, paths):
 tools_internal["explore"] = {
     "function" : explore,
     "report_function": report_explore,
-    "description" : "Explores a given path.  For a directory, it will print the contents of the directory.  For a file it will print a summary of the file, or the file itself if it is short.",
+    "description" : "Explores a given path. For a directory, it will print the contents of the directory.  For a file it will print a summary of the file, or the file itself if it is short.",
     "input_schema" : {
         "type": "object",
         "properties": {
