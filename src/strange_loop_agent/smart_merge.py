@@ -93,4 +93,6 @@ def smart_merge(original, update):
         result.append(update_sections[i])
     result.append(keep_sections[len(update_sections)])
 
+    breakpoint()
+
     return '\n'.join(result)
