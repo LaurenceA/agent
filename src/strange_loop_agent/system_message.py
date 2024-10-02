@@ -15,7 +15,7 @@ Function: /path/to/file#function_name
 Class: /path/to/file#class_name
 Method: /path/to/file#class_name#method_name
 
-When writing for the first time, or updating a pre-existing file, function or method, you should use the <write path="..."> tag.  You should end the file with </write>. Don't modify or create new files using terminal or commands like `echo` or `touch`. If you're only modifying part of a file, you should always use the most specific path possible.  For instance, if you're modifying a particular method, use /path/to/file#class_name#method_name, rather than /path/to/file#class_name or /path/to/file. You should always write the full code: never leave comments like `#rest of the code is unchanged` or `#Implement the actual logic here` or `#Setup code` or `#Teardown code`.  The file will automatically be written.  Don't try to confirm the write using a tool like explore.
+When writing for the first time, or updating a pre-existing file, function or method, you should use the <write path="..."> tag.  You should end the file with </write>. Don't modify or create new files using terminal or commands like `echo` or `touch`. If you're only modifying part of a file, you should always use the most specific path possible.  For instance, if you're modifying a particular method, use /path/to/file#class_name#method_name, rather than /path/to/file#class_name or /path/to/file. Don't try to confirm the write using a tool like explore.
 
 If you can't find a file the user refers to, then look for it using `find` or by exploring through the directory tree.
 

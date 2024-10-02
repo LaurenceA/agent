@@ -17,6 +17,7 @@ class Function(BaseModel):
     docstring: Optional[str]
     subsections: list['Function']
 
+
 class Class(BaseModel):
     type: Literal["class"]
     name: str
@@ -28,6 +29,7 @@ class Class(BaseModel):
 
     methods:list[Function]
     fields:list[str]
+
 
 class OtherSection(BaseModel):
     type: Literal["other_section"]

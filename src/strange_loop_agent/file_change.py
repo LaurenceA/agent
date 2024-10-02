@@ -14,10 +14,11 @@ def file_change(path, after):
         to_be_implemented_comment_line_numbers: a diff (e.g. for printing to the user).
     """
     #Get rid of initial and final new line
-    if after[:2] == '\n':
-        after = after[2:]
-    if after[-2:] == '\n':
-        after = after[:-2]
+    #Note that r'\n' is two characters, but '\n' is one special newline character.
+    if after[0] == '\n':
+        after = after[1:]
+    if after[-1] == '\n':
+        after = after[:-1]
 
     if unchanged_comments(after):
         raise AgentException("There was a comment indicating unchanged code in the proposed write.  You need to write _all_ the code.  If the write is very long, try to write to a specific function/class/method using e.g. <write path=/path/to/file#function_name>.")
