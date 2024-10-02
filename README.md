@@ -65,15 +65,20 @@ This will install the package in editable mode, allowing you to make changes to 
 ## Summaries approach N
 
 ## TODOs:
-* Replace tool/tags, which takes a bit of text in the underlying file with an exact match, and replaces it with something else.
-* Move check_command before confirmation, be careful about how it is printed.
+* Time out on commands.
+* Bring back smart_merge.  Use few-shot examples to specify the line numbering.
+
+* Replace tool/tags, which takes a bit of text in the underlying file with one exact match, and replaces it with something else.
 * If model asks to explore something we already have explored, remind it it will get automatic updates.
 * Clean up full_path.
-* Nicer formatting for everything.  Especially file diffs.
-* 
+* Nicer colors / formatting for everything.  Especially file diffs.
+* Load images.
 
 * a range of explore methods:
-  - explore_directories (goes through directory structure, but doesn't go into files).
+  - explore_directories (prints filenames recursively, up to some number of tokens, but not files).
+  - explore_git (prints filenames in git repo).
+  - explore_callers (prints everything that calls a function using treesitter)
+  - explore_callees (prints everything that a subsection calls treesitter)
   - explore says directory / binary / code.
   - explore git repo (prints all files tracked).
   - when we confirm for explore, we print # tokens.

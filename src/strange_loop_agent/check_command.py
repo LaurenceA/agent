@@ -26,6 +26,7 @@ touch new_file
 
 Alternatively, does it look like it is trying to write to a file? An example would be:
 echo -e '#include <stdio.h>\n\nint main() {\n    printf("Hello, World!\\n");\n    return 0;\n}' > hello_world.c
+Commands like git are fine, as they will be restoring a command from the history.
 
 Or does it look like it is trying to edit a file? An example would be:
 sed -i '' 'original_line/new_line'

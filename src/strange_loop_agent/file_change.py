@@ -2,7 +2,7 @@ from .diff import diff
 from .detect_unchanged import unchanged_comments
 
 from .exceptions import AgentException
-
+from .smart_merge import smart_merge
 
 def file_change(path, after):
     """
@@ -39,6 +39,8 @@ def file_change(path, after):
         before = ts.code
     else:
         before = before_full_file
+
+    after = smart_merge(before, after)
 
     #Merge it back into the file, taking account of parts.
     if 0 < len(path.parts):
