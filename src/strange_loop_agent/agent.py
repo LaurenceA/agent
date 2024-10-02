@@ -10,9 +10,11 @@ from .state import State
 from .tools import tools_internal
 from .state import initialize_state
 #from .summarize import summarize
-from .parse_file_writes import parse_writes
+#from .parse_file_writes import parse_writes
+from .parser import parse_writes
 from .file_change import file_change
 from .exceptions import AgentException
+from .diff import diff
 
 from .messages import TextBlock, ToolUseBlock, ToolResultBlock
 
@@ -56,31 +58,43 @@ def update_state_assistant(state, undo_state):
             state = state.append_text("assistant", block.text)
             state = state.print_assistant(block.text)
 
-            parsed_writes = parse_writes(block.text)
-
             errors = []
+            try:
+                parsed_writes = parse_writes(block.text)
+            except AgentException as e:
+                parsed_writes = []
+                errors.append(str(e))
+
             files_undo_info = []
-            for path, agent_proposed_diff in parsed_writes:
+            for write in parsed_writes:
+                if isinstance(write, str):
+                    continue
                 try:
-                    before, after, diff = file_change(path, agent_proposed_diff)
+                    write.full_path.assert_can_write()
+                    before_full_file, after_full_file = write.file_change()
+
+                    _diff = diff(before_full_file, after_full_file)
 
                     state.print_system("Diff:")
-                    state.print_system(diff)    
+                    state.print_system(_diff)    
 
-                    state, user_gave_permission = state.confirm_proceed(f"Confirm write of {path}")
+                    state, user_gave_permission = state.confirm_proceed(f"Confirm write of {write.full_path}")
                     user_refused_permission = not user_gave_permission
 
-                    if user_refused_permission:
-                        errors.append(f"User refused permission to write {path}")
+                    if not user_gave_permission:
+                        errors.append(f"User refused permission to write {write.full_path}")
                     else:
-                        #Actually do the write
-                        with path.path.open('w') as file:
-                            file.write(after)
+                        #Actually do the write. Should work as parser has checked path is valid.
+                        with write.full_path.path.open('w') as file:
+                            file.write(after_full_file)
 
-                        #Record file contents after modification; really shouldn't error.
-                        files_undo_info.append(FileUndoInfo(path=path.path, before=before, after=after))
-                        state = state.append_text("user", f'{path} successfully written')
-
+                        #Record file contents after modification.
+                        files_undo_info.append(FileUndoInfo(
+                            path=write.full_path.path, 
+                            before=before_full_file,  
+                            after=after_full_file
+                        ))
+                        state = state.append_text("user", f'{write.full_path} successfully written')
                 except AgentException as e:
                     errors.append(str(e))
 

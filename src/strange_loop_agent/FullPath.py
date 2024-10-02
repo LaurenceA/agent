@@ -30,9 +30,10 @@ def treesitter_file_ast(path):
 
     key = file_key(path)
     if key not in treesitter_cache:
-        with path.open('r') as file:
-            contents = file.read()
-        treesitter_cache[key] = treesitter_ast(contents)
+        #with path.open('r') as file:
+        #    contents = file.read()
+        #treesitter_cache[key] = treesitter_ast(contents)
+        treesitter_cache[key] = treesitter_ast(path)
     return treesitter_cache[key]
 
 
@@ -91,30 +92,6 @@ class FullPath():
         self.path = path
         self.parts = parts
 
-    def explain_why_not_exists_accessible(self):
-        if not self.path.exists():
-            return f"{self.path} does not exist"
-        elif not os.access(self.path, os.R_OK):
-            return f"No read permission for {self.path}"
-        elif not os.access(self.path, os.W_OK):
-            return f"No write permission for {self.path}"
-
-
-    def explain_why_invalid(self):
-        assert not self.is_valid()
-
-        if not self.path.exists():
-            return f"{self.path} does not exist"
-        elif not os.access(self.path, os.R_OK):
-            return f"No read permission for {self.path}"
-        elif self.path.is_dir() and 0 < len(self.parts):
-            return f"{self.path} is a directory, yet there are function/class/method names in the full path, {self}"
-        elif self.path.is_file() and not is_utf8(self.path):
-            return f"{self.path} is a file, but isn't UTF-8 formatted."
-        elif self.path.is_file() and is_utf8(self.path) and not treesitter_file_ast(self.path).exists(self.parts):
-            parts = '#' + '#'.join(self.parts)
-            return f"{self.path} is a file, and is UTF-8 formatted, but there doesn't seem to be a function/class/method at {parts}"
-
     def assert_exists_permissions(self):
         if not self.path.exists():
             raise AgentException(f"{self.path} does not exist")
@@ -153,6 +130,9 @@ class FullPath():
     def assert_can_write(self):
         if self.path.exists():
             self.assert_valid_code()
+        else:
+            if 0 < len(self.parts):
+                raise AgentException(f"{self} has function/class/method names, but the file doesn't exist.")
 
     def is_valid_dir(self):
         try:

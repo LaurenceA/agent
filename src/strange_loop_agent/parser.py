@@ -6,8 +6,7 @@ from .exceptions import AgentException
 
 class Write:
     def __init__(self, path: str, after: str):
-        path.assert_can_write()
-        self.path = full_path(path)
+        self.full_path = full_path(path)
 
         #Get rid of initial and final new line
         #Note that r'\n' is two characters, but '\n' is one special newline character.
@@ -20,54 +19,43 @@ class Write:
     def file_change(self):
         """
         Computes, but does not apply, the change to the path represented by update.
-        Returns:
-            before_full_file: the full file before the change
-            after_full_file: the full file after the change
-            diff: a diff (e.g. for printing to the user).
-            to_be_implemented_comment_line_numbers: a diff (e.g. for printing to the user).
         """
-
         #If there's currently no file, then just use the after.
-        if not self.path.path.exists():
-            return after, after
+        if not self.full_path.path.exists():
+            return '', self.after
 
         #If there is a file, then open it.
-        with path.path.open('r') as file:
+        with self.full_path.path.open('r') as file:
             before_full_file = file.read()
 
         #If there's parts, then load up only the part that we're using.
-        if 0 < len(path.parts):
+        if 0 < len(self.full_path.parts):
             ts = path.treesitter_ast()
             before = ts.code
         else:
             before = before_full_file
 
-        after = smart_merge(before, after)
-
         #Merge it back into the file, taking account of parts.
-        if 0 < len(path.parts):
+        if 0 < len(self.full_path.parts):
             before_full_file_lines = before_full_file.split('\n')
-            after_full_file = '\n'.join(before_full_file_lines[:ts.start_line]) + after + '\n'.join(before_full_file_lines[ts.end_line:])
+            after_full_file = '\n'.join(before_full_file_lines[:ts.start_line]) + self.after + '\n'.join(before_full_file_lines[ts.end_line:])
         else:
-            after_full_file = after
+            after_full_file = self.after
 
-        _diff = diff(before_full_file, after_full_file)
+        return before_full_file, after_full_file
 
-        return after_full_file, _diff
+class Replace:
+    def __init__(self, path: str, pattern: str, replacement):
+        self.full_path = full_path(path)
 
-#class Replace:
-#    def __init__(self, path: str, pattern: str, replacement):
-#        path.assert_can_write()
-#        self.path = full_path(path)
-#
-#        self.pattern = pattern
-#        self.replacement = replacement
+        self.pattern = pattern
+        self.replacement = replacement
 #
 #    def file_change(self):
 #        before = 
 #        is self.pattern not in 
 
-def parse_structure(text: str) -> List[Union[str, Write, Replace]]:
+def parse_writes(text: str) -> List[Union[str, Write, Replace]]:
     """
     Takes the text returned by an agent, and returns a list of either strings,
     Writes or Replace's
@@ -85,7 +73,7 @@ def parse_structure(text: str) -> List[Union[str, Write, Replace]]:
             if end == -1:
                 raise AgentException("Unclosed <write> tag.  No writes or replacements performed.")
             content = text[start:end].strip()
-            result.append(Write(path=path, text=content))
+            result.append(Write(path, content))
             i = end + len('</write>')
             continue
         
@@ -104,7 +92,7 @@ def parse_structure(text: str) -> List[Union[str, Write, Replace]]:
                 raise AgentException("Invalid <replace> structure.  No writes or replacements performed.")
             pattern = pattern_match.group(1).strip()
             replacement = replacement_match.group(1).strip()
-            result.append(Replace(path=path, pattern=pattern, replacement=replacement))
+            result.append(Replace(path, pattern, replacement))
             i = end + len('</replace>')
             continue
         
