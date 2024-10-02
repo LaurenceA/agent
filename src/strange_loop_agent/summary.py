@@ -28,7 +28,7 @@ Critically, each time we run the agent, we check whether the summaries are still
 import os
 from typing import Dict, List, Tuple
 
-from .FullPath import FullPath, full_path, is_valid_code, is_utf8 
+from .FullPath import FullPath, full_path
 from .treesitter import treesitter_ast
 
 #### Classes for summaries
@@ -38,20 +38,9 @@ class Summary():
 
 class DirSummary(Summary):
     def __init__(self, path):
-        assert path.is_valid_dir()
+        path.assert_valid_dir()
         self.path = path
         self.contents = '\n'.join(path.listdir_all())
-
-    def delete_message(self):
-        path = self.path.path
-        if not path.exists():
-            return f"{path} no longer exists: it must have been deleted or renamed."
-        elif not os.access(path, os.R_OK):
-            return f"No longer have read permission for {path}"
-        elif not path.is_dir():
-            return f"{path} is no longer a directory (e.g. it has changed to a file)"
-        else:
-            return None
 
     def new_message(self):
         return f'<directory, path={self.path}>\n{self.contents}\n</directory>'
@@ -64,29 +53,17 @@ class DirSummary(Summary):
 
 class GitSummary(Summary):
     def __init__(self, path):
-        assert path.is_valid_dir()
+        path.assert_valid_dir()
 
         result = self.git_ls_files()
-        assert result.return_code==0
+        if result.return_code!=0:
+            raise Exception("{path} is not a valid git repo")
 
         self.path = path
         self.contents = result.stdout
 
     def git_ls_files(self):
         return subprocess.run(f'git --git-dir={self.path} ls-files', shell=True, capture_output=True, text=True)
-
-    def delete_message(self):
-        path = self.path.path
-        if not path.exists():
-            return f"{path} no longer exists: it must have been deleted or renamed."
-        elif not os.access(path, os.R_OK):
-            return f"No longer have read permission for {path}"
-        elif not path.is_dir():
-            return f"{path} is no longer a directory (e.g. it has changed to a file)"
-        elif 0 != self.git_ls_files().return_code:
-            return f"{path} is no longer a git repository"
-        else:
-            return None
 
     def new_message(self):
         return f'<git_repo, path={self.path}>\n{self.contents}\n</git_repo>'
@@ -99,7 +76,7 @@ class GitSummary(Summary):
 
 class CodeSummary(Summary):
     def __init__(self, path, depth):
-        assert path.is_valid_code()
+        path.assert_valid_code()
         self.path = path
         self.depth = depth
 
@@ -108,19 +85,6 @@ class CodeSummary(Summary):
             self.contents = self.treesitter_ast.code
         else:
             self.contents = self.treesitter_ast.summarize(depth)
-
-    def delete_message(self):
-        file_path = self.path.path
-        if not file_path.exists():
-            return f"{file_path} no longer exists: it must have been deleted or renamed."
-        elif not os.access(file_path, os.R_OK):
-            return f"No longer have read permission for {file_path}"
-        elif not file_path.is_file():
-            return f"{file_path} is no longer a file, (e.g. it may have changed to a directory)"
-        elif not is_utf8(file_path):
-            return f"{file_path} is no longer valid UTF-8."
-        else:
-            return None
 
     def new_message(self):
         return f'<file, path={self.path}>\n{self.contents}\n</file>'
@@ -203,7 +167,7 @@ def new_summaries_from_token_source(path: FullPath, max_tokens:int) -> SummaryLi
     return prev_summaries
 
 def new_summaries_from_depth(path: FullPath, depth:int) -> SummaryList:
-    assert path.is_valid()
+    path.assert_is_valid()
     assert 1 <= depth 
 
     if path.is_valid_code():
@@ -219,29 +183,18 @@ def new_summaries_from_depth(path: FullPath, depth:int) -> SummaryList:
 
 
 
-
-def delete_summaries(summaries:SummaryDict) -> (SummaryDict, Messages):
+def update_delete_summaries(summaries: SummaryDict) -> (SummaryDict, Messages):
     updated_summaries = {}
     messages = {}
 
     for full_path, summary in summaries.items():
-        delete_message = summary.delete_message()
-        if delete_message is None:
-            updated_summaries[full_path] = summary
-        else:
-            messages[full_path] = delete_message
-
-    return (updated_summaries, messages)
-
-def update_summaries(summaries: SummaryDict) -> (SummaryDict, Messages):
-    updated_summaries = {}
-    messages = {}
-
-    for full_path, summary in summaries.items():
-        updated_summary = summary.update()
-        if summary.contents != updated_summary.contents:
-            messages[full_path] = updated_summary.update_message(summary)
-        updated_summaries[full_path] = updated_summary
+        try:
+            updated_summary = summary.update()
+            if summary.contents != updated_summary.contents:
+                messages[full_path] = updated_summary.update_message(summary)
+            updated_summaries[full_path] = updated_summary
+        except AgentException as e:
+            messages[full_path] = "Previous summary invalid. " + str(e)
 
     return (updated_summaries, messages)
 
@@ -269,16 +222,6 @@ def add_summaries(summaries:SummaryDict, new_summaries:SummaryDict):
     return (updated_summaries, messages)
 
 
-
-#### Integrating everything
-def update_delete_summaries(summaries:SummaryDict) -> (SummaryDict, Messages):
-    #Removes summaries that no longer exist.
-    summaries, delete_messages = delete_summaries(summaries)
-
-    #Applies any updates (i.e. for summaries of the same type)
-    summaries, update_messages = update_summaries(summaries)
-
-    return summaries, {**delete_messages, **update_messages}
 
 def add_summaries_from_token_sources(prev_summaries:SummaryDict, sources: List[Tuple[FullPath, int]]) -> (SummaryDict, Messages):
     checked_sources = []

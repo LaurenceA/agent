@@ -7,56 +7,12 @@ from typing import Dict, List
 from .treesitter import treesitter_ast, TreeSitterAST
 from .exceptions import AgentException
 
-class AgentCantWriteException(AgentException): pass
-
 """
 Valid Path must exist, and we must have read access.
 They can be directories or UTF-8 encoded text files.
 
 A valid FullPath is the same, but it could also be a part of a UTF-8 encoded text file.
 """
-
-def exists_accessible(path: Path):
-    assert isinstance(path, Path)
-    return os.access(path, os.R_OK) and path.exists()
-
-def is_valid_code(path: Path):
-    assert isinstance(path, Path)
-    return exists_accessible(path) and path.is_file() and is_utf8(path)
-
-def is_valid_dir(path: Path):
-    assert isinstance(path, Path)
-    return exists_accessible(path) and path.is_dir()
-
-def is_valid_path(path: Path):
-    assert isinstance(path, Path)
-    return is_valid_dir(path) or is_valid_code(path)
-
-def iterdir_all(path):
-    assert isinstance(path, Path)
-    assert is_valid_dir(path)
-    return [*path.iterdir()]
-
-def iterdir_valid(path: Path):
-    """
-    Lists all directories and non-binary files that are valid.
-    """
-    assert isinstance(path, Path)
-    assert is_valid_dir(path)
-    return [p for p in iterdir_all(path) if is_valid_path(p)]
-
-def iterdir_tracked(path: Path):
-    """
-    Lists all directories and non-binary files that are tracked (i.e. valid, and non hidden e.g. with a . at the start).
-    """
-    assert isinstance(path, Path)
-    assert is_valid_dir(path)
-    return [p for p in iterdir_valid(path) if tracked(p.name)]
-
-def tracked(filename):
-    assert isinstance(filename, str)
-    excluded_patterns = r'^\.|\.swp$|\.egg-info$'
-    return not re.search(excluded_patterns, filename)
 
 """
 There are several slow operations, including doing a treesitter parse
@@ -72,7 +28,7 @@ def file_key(path):
 #### Cache doing the treesitter parsing.
 treesitter_cache = {}
 def treesitter_file_ast(path):
-    assert is_valid_code(path)
+    assert is_utf8(path)
 
     key = file_key(path)
     if key not in treesitter_cache:
@@ -118,7 +74,7 @@ def _is_utf8(path:Path):
 
 cache_is_utf8 = {}
 def is_utf8(path):
-    assert exists_accessible(path) and path.is_file()
+    assert path.exists() and os.access(path, os.R_OK) and path.is_file()
 
     key = file_key(path)
     if key not in treesitter_cache:
@@ -159,35 +115,82 @@ class FullPath():
             parts = '#' + '#'.join(self.parts)
             return f"{self.path} is a file, and is UTF-8 formatted, but there doesn't seem to be a function/class/method at {parts}"
 
-    def assert_can_write(self):
-        if not os.access(self.path, os.R_OK):
-            raise AgentCantWriteException(f"No read permission for {self.path}")
+    def assert_exists_permissions(self):
+        if not self.path.exists():
+            raise AgentException(f"{self.path} does not exist")
+        elif not os.access(self.path, os.R_OK):
+            raise AgentException(f"No read permission for {self.path}")
         elif not os.access(self.path, os.W_OK):
-            raise AgentCantWriteException(f"No write permission for {self.path}")
-        elif self.path.is_dir():
-            raise AgentCantWriteException(f"{self.path} is a directory.")
+            raise AgentException(f"No write permission for {self.path}")
+
+    def assert_valid_code(self):
+        self.assert_exists_permissions()
+        if not self.path.is_file():
+            raise AgentException(f"{self.path} is not a file (e.g. it could be a directory).")
         elif self.path.is_file() and not is_utf8(self.path):
-            raise AgentCantWriteException(f"{self.path} is a file, but isn't UTF-8 formatted.")
+            raise AgentException(f"{self.path} is a file, but isn't UTF-8 formatted.")
         elif self.path.is_file() and is_utf8(self.path) and not treesitter_file_ast(self.path).exists(self.parts):
             parts = '#' + '#'.join(self.parts)
-            raise AgentCantWriteException(f"{self.path} is a file, and is UTF-8 formatted, but there doesn't seem to be a function/class/method at {parts}")
+            raise AgentException(f"{self.path} is a file, and is UTF-8 formatted, but there doesn't seem to be a function/class/method at {parts}")
+
+    def assert_valid_dir(self):
+        if 0 < len(self.parts):
+            raise AgentException(f"{self} has function/class/method names, so it can't be a valid directory")
+        self.assert_exists_permissions()
+        if not self.path.is_dir():
+            raise AgentException(f"{self.path} is not a directory, e.g. it could be a file")
+
+    def assert_is_valid(self):
+        if not self.path.exists():
+            raise AgentException(f"{self.path} does not exist")
+        elif not (self.path.is_file() or self.path.is_dir()):
+            raise AgentException(f"{self.path} is neither a directory of a file")
+        elif self.path.is_file():
+            self.assert_valid_code()
+        else:
+            self.assert_valid_dir()
+
+    def assert_can_write(self):
+        if self.path.exists():
+            self.assert_valid_code()
 
     def is_valid_dir(self):
-        return is_valid_dir(self.path) and (len(self.parts) == 0)
+        try:
+            self.assert_valid_dir()
+        except AgentException:
+            return False
+        return True
 
     def is_valid_code(self):
-        if not is_valid_code(self.path):
-            #Not a valid code file.
+        try:
+            self.assert_valid_code()
+        except AgentException:
             return False
-        elif len(self.parts) == 0:
-            #We are in a valid code file, and there are no parts
-            return True
-        else:
-            #We are in a valid code file, and there are parts
-            return treesitter_file_ast(self.path).exists(self.parts)
+        return True
 
     def is_valid(self):
         return self.is_valid_code() or self.is_valid_dir()
+
+    def iterdir_all(self):
+        assert self.is_valid_dir()
+        return [FullPath(path) for path in self.path.iterdir()]
+
+    def iterdir_valid(self):
+        """
+        Lists all directories and non-binary files that are valid.
+        """
+        return [p for p in self.iterdir_all() if p.is_valid()]
+
+    def iterdir_tracked(self):
+        """
+        Lists all directories and non-binary files that are tracked (i.e. valid, and non hidden e.g. with a . at the start).
+        """
+        def tracked(filename):
+            assert isinstance(filename, str)
+            excluded_patterns = r'^\.|\.swp$|\.egg-info$'
+            return not re.search(excluded_patterns, filename)
+
+        return [p for p in self.iterdir_valid() if tracked(p.path.name)]
 
     def name(self):
         if 0 < len(self.parts):
@@ -228,7 +231,7 @@ class FullPath():
         """
         assert self.is_valid()
         if self.is_valid_dir():
-            return [FullPath(p) for p in iterdir_tracked(self.path)]
+            return self.iterdir_tracked()
         else:
             ts = self.treesitter_ast()
             return [self.append_part(part) for part in ts.children.keys()]
@@ -257,7 +260,7 @@ class FullPath():
 
     def listdir_all(self) -> List[str]:
         assert self.is_valid_dir()
-        return [p.name for p in iterdir_all(self.path)]
+        return [p.path.name for p in self.iterdir_all()]
 
     def __str__(self):
         parts = '#'.join(self.parts)

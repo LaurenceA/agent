@@ -12,7 +12,6 @@ from .state import initialize_state
 #from .summarize import summarize
 from .parse_file_writes import parse_writes
 from .file_change import file_change
-from .FullPath import AgentCantWriteException
 from .exceptions import AgentException
 
 from .messages import TextBlock, ToolUseBlock, ToolResultBlock
