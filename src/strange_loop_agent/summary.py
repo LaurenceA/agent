@@ -122,7 +122,7 @@ def file_list_update_message(path, original_filenames:str, updated_filenames:str
 
 SummaryDict = Dict[FullPath, Summary]
 SummaryList = List[Tuple[FullPath, Summary]]
-Messages = Dict[FullPath, str]  # Changed from List[str] to Dict[FullPath, str]
+Messages = List[str]
 Source = Tuple[FullPath, int]
 Sources = List[Source]
 
@@ -185,22 +185,22 @@ def new_summaries_from_depth(path: FullPath, depth:int) -> SummaryList:
 
 def update_delete_summaries(summaries: SummaryDict) -> (SummaryDict, Messages):
     updated_summaries = {}
-    messages = {}
+    messages = []
 
     for full_path, summary in summaries.items():
         try:
             updated_summary = summary.update()
             if summary.contents != updated_summary.contents:
-                messages[full_path] = updated_summary.update_message(summary)
+                messages.append(updated_summary.update_message(summary))
             updated_summaries[full_path] = updated_summary
         except AgentException as e:
-            messages[full_path] = "Previous summary invalid. " + str(e)
+            messages.append("Previous summary invalid. " + str(e))
 
     return (updated_summaries, messages)
 
 def add_summaries(summaries:SummaryDict, new_summaries:SummaryDict):
     updated_summaries = {**summaries}
-    messages = {}
+    messages = []
 
     #New summaries may have unnecessary new summaries, e.g. those that we already have,
     #or those where we already have a deeper code summary.
@@ -217,7 +217,7 @@ def add_summaries(summaries:SummaryDict, new_summaries:SummaryDict):
 
         if insert:
             updated_summaries[full_path] = new_summary
-            messages[full_path] = new_summary.new_message()
+            messages.append(new_summary.new_message())
     
     return (updated_summaries, messages)
 
@@ -225,16 +225,17 @@ def add_summaries(summaries:SummaryDict, new_summaries:SummaryDict):
 
 def add_summaries_from_token_sources(prev_summaries:SummaryDict, sources: List[Tuple[FullPath, int]]) -> (SummaryDict, Messages):
     checked_sources = []
-    invalid_messages = {}
+    invalid_messages = []
     for full_path, tokens in sources:
-        if full_path.is_valid():
+        try:
+            full_path.assert_is_valid()
             checked_sources.append((full_path, tokens))
-        else:
-            invalid_messages[full_path] = full_path.explain_why_invalid()
+        except AgentException as e:
+            invalid_messages.append(e)
 
     new_summaries = new_summaries_from_token_sources(checked_sources)
     summaries, messages = add_summaries(prev_summaries, new_summaries)
-    return summaries, {**messages, **invalid_messages}
+    return summaries, messages + invalid_messages
 
 
 #fp = full_path('src/')

@@ -114,13 +114,13 @@ class State:
         updated_summaries, messages = add_summaries_from_token_sources(self.summaries, sources)
         self = replace(self, summaries = updated_summaries)
 
-        return self, '\n\n\n'.join(messages.values())
+        return self, '\n\n\n'.join(messages)
 
     def update_summaries(self):
         updated_summaries, messages = update_delete_summaries(self.summaries)
         self = replace(self, summaries = updated_summaries)
 
-        return self, '\n\n\n'.join(messages.values())
+        return self, '\n\n\n'.join(messages)
 
 
 def initialize_state():
