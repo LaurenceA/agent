@@ -54,15 +54,48 @@ class DirSummary(Summary):
             return None
 
     def new_message(self):
-        return f'<directory_contents, path={self.path}>\n{self.contents}\n</directory>'
+        return f'<directory, path={self.path}>\n{self.contents}\n</directory>'
 
     def update_message(self, prev_summary):
-        return f'<directory_contents, path={self.path}>\n{self.contents}\n</directory>'
+        return file_list_update_message(self.path, prev_summary.contents, self.contents)
 
     def update(self):
         return DirSummary(self.path)
 
-    #def diff(self, other):
+class GitSummary(Summary):
+    def __init__(self, path):
+        assert path.is_valid_dir()
+
+        result = self.git_ls_files()
+        assert result.return_code==0
+
+        self.path = path
+        self.contents = result.stdout
+
+    def git_ls_files(self):
+        return subprocess.run('git ls-files', shell=True, capture_output=True, text=True)
+
+    def delete_message(self):
+        path = self.path.path
+        if not path.exists():
+            return f"{path} no longer exists: it must have been deleted or renamed."
+        elif not os.access(path, os.R_OK):
+            return f"No longer have read permission for {path}"
+        elif not path.is_dir():
+            return f"{path} is no longer a directory (e.g. it has changed to a file)"
+        elif 0 != self.git_ls_files().return_code:
+            return f"{path} is no longer a git repository"
+        else:
+            return None
+
+    def new_message(self):
+        return f'<git_repo, path={self.path}>\n{self.contents}\n</git_repo>'
+
+    def update_message(self, prev_summary):
+        return file_list_update_message(self.path, prev_summary.contents, self.contents)
+
+    def update(self):
+        return GitSummary(self.path)
 
 class CodeSummary(Summary):
     def __init__(self, path, depth):
@@ -80,7 +113,7 @@ class CodeSummary(Summary):
         file_path = self.path.path
         if not file_path.exists():
             return f"{file_path} no longer exists: it must have been deleted or renamed."
-        elif not os.access(path, os.R_OK):
+        elif not os.access(file_path, os.R_OK):
             return f"No longer have read permission for {file_path}"
         elif not file_path.is_file():
             return f"{file_path} is no longer a file, (e.g. it may have changed to a directory)"
@@ -90,16 +123,38 @@ class CodeSummary(Summary):
             return None
 
     def new_message(self):
-        return f'<file_contents, path={self.path}>\n{self.contents}\n</file_contents>'
+        return f'<file, path={self.path}>\n{self.contents}\n</file>'
 
     def update_message(self, prev_summary):
-        return f'<file_contents, path={self.path}>\n{self.contents}\n</file_contents>'
+        return f'<file, path={self.path}>\n{self.contents}\n</file>'
 
     def update(self):
         return CodeSummary(self.path, self.depth)
         #returns a new summary, based on the path and depth
 
-    #def diff(self, other):
+def file_list_update_message(path, original_filenames:str, updated_filenames:str):
+    """
+    Takes two lists of filenames, as a single string with newlines between filenames, and returns changes.
+    """
+    original_filenames = set(original_filenames.split('\n'))
+    updated_filenames = set(updated_filenames.split('\n'))
+
+    new_filenames = list(updated_filenames.difference(original_filenames))
+    deleted_filenames = list(original_filenames.difference(updated_filenames))
+
+    new_filenames = '\n'.join(['    ' + filename for filename in new_filenames])
+    deleted_filenames = '\n'.join(['    ' + filename for filename in deleted_filenames])
+
+
+    result = f'<directory_update path={path}>\n'
+    if new_filenames:
+        result = result + f'  <new_files>\n{new_filenames}\n  </new_files>\n'
+    if deleted_filenames:
+        result = result + f'  <deleted_files>\n{deleted_filenames}\n  </deleted_files>\n'
+    result = result + '</directory_update>'
+    return result
+    
+    
 
 SummaryDict = Dict[FullPath, Summary]
 SummaryList = List[Tuple[FullPath, Summary]]
