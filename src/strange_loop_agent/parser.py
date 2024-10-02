@@ -26,7 +26,7 @@ class Modification:
             before_full_file_lines = before_full_file.split('\n')
             after_full_file = '\n'.join(before_full_file_lines[:ts.start_line]) + self.after + '\n'.join(before_full_file_lines[ts.end_line:])
         else:
-            after_full_file = self.after
+            after_full_file = after
 
         return (before_full_file, after_full_file)
 
