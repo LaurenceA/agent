@@ -1,4 +1,13 @@
 """
+Ultimately, there is a collection of Summary's.
+Each Summary represents a summary of something that has already been given to the agent.  This could be:
+  A file
+  A directory
+  A git repo
+For example, a summary of a directory is just the files in that directory, while the summary of a file could be the function/class definitions extracted by treesitter, or it could just be the full file.
+
+Critically, each time we run the agent, we check whether the summaries are still valid: they might have been invalidated by user actions that we can't see.  It they have been invalidated, then we update the summary, and return a message (string) to the agent.
+
 * Key operation is adding a new source, which gives rise to one or more new summary blocks.
 * A summary block corresponds to a directory, a code file, or a part of a code file (like a class).
 * A summary block prints a string.  These strings can be diff'ed if something changes.
@@ -19,7 +28,7 @@
 import os
 from typing import Dict, List, Tuple
 
-from .FullPath import FullPath, full_path, is_valid_code
+from .FullPath import FullPath, full_path, is_valid_code, is_utf8 
 from .treesitter import treesitter_ast
 
 #### Classes for summaries
@@ -32,6 +41,17 @@ class DirSummary(Summary):
         assert path.is_valid_dir()
         self.path = path
         self.contents = '\n'.join(path.listdir_all())
+
+    def delete_message(self):
+        path = self.path.path
+        if not path.exists():
+            return f"{path} no longer exists: it must have been deleted or renamed."
+        elif not os.access(path, os.R_OK):
+            return f"No longer have read permission for {path}"
+        elif not path.is_dir():
+            return f"{path} is no longer a directory (e.g. it has changed to a file)"
+        else:
+            return None
 
     def new_message(self):
         return f'<directory_contents, path={self.path}>\n{self.contents}\n</directory>'
@@ -55,6 +75,19 @@ class CodeSummary(Summary):
             self.contents = self.treesitter_ast.code
         else:
             self.contents = self.treesitter_ast.summarize(depth)
+
+    def delete_message(self):
+        file_path = self.path.path
+        if not file_path.exists():
+            return f"{file_path} no longer exists: it must have been deleted or renamed."
+        elif not os.access(path, os.R_OK):
+            return f"No longer have read permission for {file_path}"
+        elif not file_path.is_file():
+            return f"{file_path} is no longer a file, (e.g. it may have changed to a directory)"
+        elif not is_utf8(file_path):
+            return f"{file_path} is no longer valid UTF-8."
+        else:
+            return None
 
     def new_message(self):
         return f'<file_contents, path={self.path}>\n{self.contents}\n</file_contents>'
@@ -137,23 +170,12 @@ def delete_summaries(summaries:SummaryDict) -> (SummaryDict, Messages):
     messages = {}
 
     for full_path, summary in summaries.items():
-        still_valid_dir = isinstance(summary, DirSummary) and full_path.is_valid_dir()
-        still_valid_code = isinstance(summary, CodeSummary) and full_path.is_valid_code()
-        if still_valid_dir or still_valid_code:
+        delete_message = summary.delete_message()
+        if delete_message is None:
             updated_summaries[full_path] = summary
         else:
-            if not os.access(full_path.path, os.R_OK):
-                messages[full_path] = f"No longer have read permission for {full_path.path}"
-            elif not full_path.path.exists():
-                messages[full_path] = f"{full_path} has been deleted or renamed"
-            elif isinstance(summary, DirSummary):
-                messages[full_path] = f"{full_path} is no longer a directory (e.g. it has changed to a file)"
-            elif isinstance(summary, CodeSummary) and not is_valid_code(full_path.path):
-                messages[full_path] = f"{full_path} is no longer a code file (e.g. it has changed to a binary file or a directory"
-            elif isinstance(summary, CodeSummary) and not full_path.exists():
-                messages[full_path] = f"{full_path} has been deleted or renamed"
-            else:
-                breakpoint()
+            messages[full_path] = delete_message
+
     return (updated_summaries, messages)
 
 def update_summaries(summaries: SummaryDict) -> (SummaryDict, Messages):

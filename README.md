@@ -66,9 +66,8 @@ This will install the package in editable mode, allowing you to make changes to 
 
 ## TODOs:
 * Time out on commands.
-* Bring back smart_merge.  Use few-shot examples to specify the line numbering.
-
-* Replace tool/tags, which takes a bit of text in the underlying file with one exact match, and replaces it with something else.
+* For very long command outputs (e.g. latex), summarize with GPT-4o mini.
+* See whether model ever generates <replace> tags, if so implement them!
 * If model asks to explore something we already have explored, remind it it will get automatic updates.
 * Clean up full_path.
 * Nicer colors / formatting for everything.  Especially file diffs.
@@ -85,10 +84,6 @@ This will install the package in editable mode, allowing you to make changes to 
 
 * how to integrate LSP info where a function is called?
   - just get Claude to write requests for the LSP?
-
-* Labels for code blocks:
-  - Integrate them into files as the full contents are printed.
-  - Include a comment in the system prompt to avoid calling them
 
 * overseer "agent":
   - Runs concurrently with the main agent.
