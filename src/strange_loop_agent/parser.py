@@ -4,7 +4,33 @@ from .FullPath import full_path
 
 from .exceptions import AgentException
 
-class Write:
+class Modification:
+    def treesitter_ast_file_change(self):
+        #There must be a valid code file for this function to make sense.
+        self.full_path.assert_valid_code() 
+        
+        with self.full_path.path.open('r') as file:
+            before_full_file = file.read()
+
+        #If there's parts, then load up only the part that we're using.
+        if 0 < len(self.full_path.parts):
+            ts = path.treesitter_ast()
+            before = ts.code
+        else:
+            before = before_full_file
+
+        after = self.part_change(before)
+
+        #Merge it back into the file, taking account of parts.
+        if 0 < len(self.full_path.parts):
+            before_full_file_lines = before_full_file.split('\n')
+            after_full_file = '\n'.join(before_full_file_lines[:ts.start_line]) + self.after + '\n'.join(before_full_file_lines[ts.end_line:])
+        else:
+            after_full_file = self.after
+
+        return (before_full_file, after_full_file)
+
+class Write(Modification):
     def __init__(self, path: str, after: str):
         self.full_path = full_path(path)
 
@@ -20,40 +46,31 @@ class Write:
         """
         Computes, but does not apply, the change to the path represented by update.
         """
+        self.full_path.assert_can_write()
         #If there's currently no file, then just use the after.
         if not self.full_path.path.exists():
             return '', self.after
-
-        #If there is a file, then open it.
-        with self.full_path.path.open('r') as file:
-            before_full_file = file.read()
-
-        #If there's parts, then load up only the part that we're using.
-        if 0 < len(self.full_path.parts):
-            ts = path.treesitter_ast()
-            before = ts.code
         else:
-            before = before_full_file
+            return self.treesitter_ast_file_change()
 
-        #Merge it back into the file, taking account of parts.
-        if 0 < len(self.full_path.parts):
-            before_full_file_lines = before_full_file.split('\n')
-            after_full_file = '\n'.join(before_full_file_lines[:ts.start_line]) + self.after + '\n'.join(before_full_file_lines[ts.end_line:])
-        else:
-            after_full_file = self.after
+    def part_change(self, before):
+        return self.after
 
-        return before_full_file, after_full_file
-
-class Replace:
+class Replace(Modification):
     def __init__(self, path: str, pattern: str, replacement):
         self.full_path = full_path(path)
 
         self.pattern = pattern
         self.replacement = replacement
-#
-#    def file_change(self):
-#        before = 
-#        is self.pattern not in 
+
+    def file_change(self):
+        return self.treesitter_ast_file_change()
+
+    def part_change(self, before):
+        if self.pattern not in before:
+            raise AgentException("Pattern {self.pattern} not in {self.full_path}")
+        else:
+            return before.replace(self.pattern, self.replacement)
 
 def parse_writes(text: str) -> List[Union[str, Write, Replace]]:
     """

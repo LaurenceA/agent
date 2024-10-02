@@ -70,7 +70,6 @@ def update_state_assistant(state, undo_state):
                 if isinstance(write, str):
                     continue
                 try:
-                    write.full_path.assert_can_write()
                     before_full_file, after_full_file = write.file_change()
 
                     _diff = diff(before_full_file, after_full_file)
