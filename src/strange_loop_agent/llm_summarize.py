@@ -23,7 +23,7 @@ class Class(BaseModel):
     name: str
     start_line_number: int
     end_line_number: int
-    first_line_text: str
+    first_line_text: st
     summary: str
     docstring: Optional[str]
 

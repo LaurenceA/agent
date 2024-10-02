@@ -56,6 +56,11 @@ tools_internal["run_command_in_shell"] = {
     },
 }
 
+
+
+
+
+
 def report_explore(paths):
     return f"About to explore: {paths}"
 
@@ -84,3 +89,90 @@ tools_internal["explore"] = {
         "required": ["paths"],
     },
 }
+
+
+
+
+
+
+#def report_git_ls_files(path):
+#    return f"About to a git repo at: {path}"
+#
+#def git_ls_files(state, path):
+#    return not_implemented
+#
+#def check_git_ls_files(state, paths):
+#    pass
+#
+#tools_internal["git_ls_files"] = {
+#    "function" : git_ls_files,
+#    "report_function": report_git_ls_files,
+#    "check_function": check_git_ls_files,
+#    "description" : "Prints all the files in the git repo at path.",
+#    "input_schema" : {
+#        "type": "object",
+#        "properties": {
+#            "command": {
+#                "type": "string",
+#                "description": "The path to the git repo.",
+#            },
+#        },
+#        "required": ["path"],
+#    },
+#}
+#
+#
+#def report_ls(path):
+#    return f"About to print a directory at: {path}"
+#
+#def ls(state, path):
+#    return not_implemented
+#
+#def check_ls(state, paths):
+#    pass
+#
+#tools_internal["ls"] = {
+#    "function" : ls,
+#    "report_function": report_ls,
+#    "check_function": check_ls,
+#    "description" : "Same as running ls: prints all the files in the directory specified by the path.",
+#    "input_schema" : {
+#        "type": "object",
+#        "properties": {
+#            "command": {
+#                "type": "string",
+#                "description": "The path to the directory.",
+#            },
+#        },
+#        "required": ["path"],
+#    },
+#}
+#
+#
+#
+#
+#def report_ls_recursive(path):
+#    return f"About to print a directory at: {path}"
+#
+#def ls_recursive(state, path):
+#    return not_implemented
+#
+#def check_ls_recursive(state, paths):
+#    pass
+#
+#tools_internal["ls_recursive"] = {
+#    "function" : ls_recursive,
+#    "report_function": report_ls_recursive,
+#    "check_function": check_ls_recursive,
+#    "description" : "Same as running ls -R path: prints all the files in the directory specified by the path, recursing through all the directories.  Note, does not explicitly recurse into some directories, such as those that are hidden.",
+#    "input_schema" : {
+#        "type": "object",
+#        "properties": {
+#            "command": {
+#                "type": "string",
+#                "description": "The path to the directory.",
+#            },
+#        },
+#        "required": ["path"],
+#    },
+#}

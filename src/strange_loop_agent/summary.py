@@ -73,7 +73,7 @@ class GitSummary(Summary):
         self.contents = result.stdout
 
     def git_ls_files(self):
-        return subprocess.run('git ls-files', shell=True, capture_output=True, text=True)
+        return subprocess.run(f'git --git-dir={self.path} ls-files', shell=True, capture_output=True, text=True)
 
     def delete_message(self):
         path = self.path.path

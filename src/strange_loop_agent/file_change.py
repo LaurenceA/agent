@@ -20,8 +20,8 @@ def file_change(path, after):
     if after[-1] == '\n':
         after = after[:-1]
 
-    if unchanged_comments(after):
-        raise AgentException("There was a comment indicating unchanged code in the proposed write.  You need to write _all_ the code.  If the write is very long, try to write to a specific function/class/method using e.g. <write path=/path/to/file#function_name>.")
+    #if unchanged_comments(after):
+    #    raise AgentException("There was a comment indicating unchanged code in the proposed write.  You need to write _all_ the code.  If the write is very long, try to write to a specific function/class/method using e.g. <write path=/path/to/file#function_name>.")
 
     #If there's currently no file, then just use the after.
     if not path.path.exists():
@@ -50,6 +50,6 @@ def file_change(path, after):
     else:
         after_full_file = after
 
-    _diff = diff(before_full_file, after_full_file, 'before', 'after')
+    _diff = diff(before_full_file, after_full_file)
 
     return before_full_file, after_full_file, _diff
