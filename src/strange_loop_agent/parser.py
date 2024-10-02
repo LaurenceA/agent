@@ -55,16 +55,17 @@ class Write:
 
         return after_full_file, _diff
 
-class Replace:
-    def __init__(self, path: str, pattern: str, replacement):
-        path.assert_can_write()
-        self.path = full_path(path)
-
-        self.pattern = pattern
-        self.replacement = replacement
-
-    def file_change(self):
-        if self.
+#class Replace:
+#    def __init__(self, path: str, pattern: str, replacement):
+#        path.assert_can_write()
+#        self.path = full_path(path)
+#
+#        self.pattern = pattern
+#        self.replacement = replacement
+#
+#    def file_change(self):
+#        before = 
+#        is self.pattern not in 
 
 def parse_structure(text: str) -> List[Union[str, Write, Replace]]:
     """

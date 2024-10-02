@@ -81,7 +81,7 @@ def update_state_assistant(state, undo_state):
                         files_undo_info.append(FileUndoInfo(path=path.path, before=before, after=after))
                         state = state.append_text("user", f'{path} successfully written')
 
-                except AgentCantWriteException as e:
+                except AgentException as e:
                     errors.append(str(e))
 
             state_undo_info.append(StateUndoInfo(state=undo_state, files_undo_info=files_undo_info))

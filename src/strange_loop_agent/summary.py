@@ -30,6 +30,7 @@ from typing import Dict, List, Tuple
 
 from .FullPath import FullPath, full_path
 from .treesitter import treesitter_ast
+from .exceptions import AgentException
 
 #### Classes for summaries
 class Summary():
@@ -231,7 +232,7 @@ def add_summaries_from_token_sources(prev_summaries:SummaryDict, sources: List[T
             full_path.assert_is_valid()
             checked_sources.append((full_path, tokens))
         except AgentException as e:
-            invalid_messages.append(e)
+            invalid_messages.append(str(e))
 
     new_summaries = new_summaries_from_token_sources(checked_sources)
     summaries, messages = add_summaries(prev_summaries, new_summaries)
