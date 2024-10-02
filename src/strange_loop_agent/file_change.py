@@ -41,7 +41,7 @@ def file_change(path, after):
     else:
         before = before_full_file
 
-    after = smart_merge(before, after)
+    #after = smart_merge(before, after)
 
     #Merge it back into the file, taking account of parts.
     if 0 < len(path.parts):

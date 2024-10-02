@@ -23,8 +23,6 @@ the file path, modification time and size as a key.
 def file_key(path):
     return (str(path), path.stat().st_mtime, path.stat().st_size)
 
-
-
 #### Cache doing the treesitter parsing.
 treesitter_cache = {}
 def treesitter_file_ast(path):
@@ -32,7 +30,9 @@ def treesitter_file_ast(path):
 
     key = file_key(path)
     if key not in treesitter_cache:
-        treesitter_cache[key] = treesitter_ast(path)
+        with path.open('r') as file:
+            contents = file.read()
+        treesitter_cache[key] = treesitter_ast(contents)
     return treesitter_cache[key]
 
 
