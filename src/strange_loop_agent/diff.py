@@ -1,7 +1,8 @@
 import difflib
+d = difflib.Differ()
 
 def diff(original, updated):
-    diff_lines = list(difflib.ndiff(original.splitlines(), updated.splitlines()))
+    diff_lines = list(d.compare(original.splitlines(), updated.splitlines()))
 
     #Extracts the line numbers corresponding to modified code.
     modified_lines = [i for (i, line) in enumerate(diff_lines) if line[0] in ['+', '-']]
