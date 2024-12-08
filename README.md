@@ -59,8 +59,9 @@ This will install the package in editable mode, allowing you to make changes to 
   - The model can add extra token budget at interesting nodes.
   - Summaries are cache-friendly: we keep the summary in the cache, and update only new information.
   - Summaries are updated both for externally updated and agent-written files.
-* The model has a unified FullPath abstraction, allowing it to refer to class/function/methods within a file.
-  - e.g. `path/to/file#class_name#method_name`
+* The model has a unified `FullPath` abstraction e.g. `path/to/file#class_name#method_name`.  A FullPath can refer to a file, class, method or function.  The agent operates exclusively on `FullPath`'s.  So it can take a file/class/mehthod/function, and:
+  - load it into context.
+  - edit it.
 * There is an undo command, that undoes the previous user command + assistant response.
   - This should be used liberally, as avoids building up a huge context!
   - Rewinds the state of the agent + all the files written by the agent.
