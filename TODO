@@ -1,0 +1,63 @@
+## Summaries approach N
+
+## TODOs:
+* Time out on commands / interactive commands.
+* Write a process_assistant_message function, separate from the function that gets the assistant message.
+* For very long command outputs (e.g. latex), summarize with GPT-4o mini.
+* See whether model ever generates <replace> tags, if so implement them!
+* If model asks to explore something we already have explored, remind it it will get automatic updates.
+* Clean up full_path.
+* Nicer colors / formatting for everything.  Especially file diffs.
+* Load images.
+
+* a range of explore methods:
+  - explore_directories (prints filenames recursively, up to some number of tokens, but not files).
+  - explore_git (prints filenames in git repo).
+  - explore_callers (prints everything that calls a function using treesitter)
+  - explore_callees (prints everything that a subsection calls treesitter)
+  - explore says directory / binary / code.
+  - explore git repo (prints all files tracked).
+  - when we confirm for explore, we print # tokens.
+
+* how to integrate LSP info where a function is called?
+  - just get Claude to write requests for the LSP?
+
+* overseer "agent":
+  - Runs concurrently with the main agent.
+  - Quite weak model (4o-mini / haiku?)
+  - Just takes the last user input + the model's response (e.g. not context).
+  - Asks two questions:
+    - Is it on-topic?
+    - Is it finished with the task?
+    - Is it going round in circles?
+  - If any of these are true, stop, and optionally undo a couple of times.
+
+* recursive agent calling:
+  - agent can call itself as a tool.
+  - usual use is:
+    - top-level agent gets asked a complex task.
+    - it breaks it up into smaller tasks.
+    - gives each smaller task to its own agent.
+    - useful for managing context, because each smaller task has 
+
+* Search tools:
+  - Google search tool.
+  - Load webpage tool.
+
+* Summaries:
+  - if you change a sufficiently long block, you should diff it!
+  - if you ask to explore e.g. a long function or script with no heirarchical structure, then standard explore might not print any information.  You need to force some info printed.
+  - Summaries: make sure that writing files interacts correctly with sources.
+  - Summaries: Optional GPT-4o-mini summaries.
+  - Summaries: Anything other than function / class definitions (e.g. Haskell typedef)?
+  - Summaries: .gitignore format for paths to ignore.
+
+* Allow agent to use interactive tools, like a Python interpreter
+
+* How to cross-reference context vs line numbers in error messages?
+  - The problem is that error messages come with line numbers in the underlying files.
+  - However, we don't really want to embed the line numbers in code summaries, because then you have to update the code summaries every time the line numbers change.  And that could happen alot if you change something higher in the file.
+  - The solution is to take the error message and:
+    - Use GPT-4o mini to take the error message, and return the filenames + linenumbers referred to in the error message.
+    - Translate these filenames + linenumbers into relative paths (e.g. path to a function + line number within the function).
+    - Put these back into the error message.
