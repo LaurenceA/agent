@@ -63,5 +63,7 @@ This will install the package in editable mode, allowing you to make changes to 
   - This should be used liberally, as avoids building up a huge context!
   - Rewinds the state of the agent + all the files written by the agent.
   - Doesn't rewind state changes from commands run by the agent, as these commands could do anything, and we can't track that.
-
+* Doesn't integrate with Git.  The agent can still use Git through the terminal.  This is nice because:
+  - It doesn't require you to be working in a git repo to operate.
+  - It doesn't make a mess of your Git history.
 
