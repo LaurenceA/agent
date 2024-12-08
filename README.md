@@ -54,11 +54,10 @@ pip install -e .
 This will install the package in editable mode, allowing you to make changes to the source code and immediately see the effects.
 
 ## Features:
-* Summaries:
+* Token and prefix-cache friendly code summaries:
   - You set a token budget for the summary, which then "flows" through the directory tree.
   - The model can add extra token budget at interesting nodes.
-  - Summaries are cache-friendly: we keep the summary in the cache, and update only new information.
-  - Summaries are updated both for externally updated and agent-written files.
+  - Summaries are cache-friendly: we keep a record of all code that has gone into the context, and avoid repeating code (or other information) that's already there.
 * The model has a unified `FullPath` abstraction e.g. `path/to/file#class_name#method_name`.  A FullPath can refer to a file, class, method or function.  The agent operates exclusively on `FullPath`'s.  So it can take a file/class/mehthod/function, and:
   - load it into context.
   - edit it.
