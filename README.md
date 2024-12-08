@@ -1,7 +1,7 @@
 # Strange Loop Coding Agent
 *Warning: alpha quality code.  Run at your own risk, ideally in a sandboxed environment.*
 
-This is a Python package for the Strange Loop Agent project.  
+This is a Python package for the Strange Loop terminal-based coding agent.  
 
 ## Installation
 To install this package, clone the repository and run:
@@ -25,6 +25,8 @@ strange_loop_agent
 ```
 
 The agent assumes you're running it run from the project root directory.
+
+The agent is designed to be used alongside a code editor in `tmux`.
 
 ## Project Structure
 
