@@ -1,5 +1,7 @@
-# Strange Loop Agent
-This is a Python package for the Strange Loop Agent project.
+# Strange Loop Coding Agent
+*Warning: alpha quality code.  Run at your own risk, ideally in a sandboxed environment.*
+
+This is a Python package for the Strange Loop Agent project.  
 
 ## Installation
 To install this package, clone the repository and run:
